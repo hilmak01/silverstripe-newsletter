@@ -246,15 +246,6 @@ class Newsletter extends DataObject implements CMSPreviewable
                 new GridFieldPaginator(30)
             );
 
-            //Create the Sent To Queue grid
-            if (class_exists("GridFieldAjaxRefresh") && $this->SendRecipientQueue()->exists()) {
-                //only use auto-refresh if there is a send out currently in-progress, otherwise no-point
-                if ($this->SendRecipientQueue()->filter(
-                    array('Status'=>array('Scheduled', 'InProgress')))->count() > 0) {
-                    $gridFieldConfig->addComponent(new GridFieldAjaxRefresh(5000, true));
-                }
-            }
-
             $sendRecipientGrid = GridField::create(
                 'SendRecipientQueue',
                 _t('NewsletterAdmin.SentTo', 'Sent to'),
