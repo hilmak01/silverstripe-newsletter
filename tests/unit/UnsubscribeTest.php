@@ -7,10 +7,11 @@ use SilverStripe\Newsletter\Control\UnsubscribeController;
 use SilverStripe\Security\Member;
 use SilverStripe\Control\Director;
 use SilverStripe\Security\Group;
+use SilverStripe\Core\Config\Config;
 
 class UnsubscribeTest extends SapphireTest
 {
-    private static $fixture_file = 'newsletter/tests/unit/UnsubscribeTest.yml';
+    protected static $fixture_file = 'UnsubscribeTest.yml';
 
     public static $page;
 

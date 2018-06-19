@@ -6,6 +6,7 @@ use SilverStripe\Dev\SapphireTest;
 
 class NewsletterEmailTest extends SapphireTest
 {
+    protected static $fixture_file = "Base.yml";
 
     public function testTracksRelativeLinks()
     {

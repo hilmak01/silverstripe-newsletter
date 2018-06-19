@@ -6,7 +6,7 @@ use SilverStripe\Dev\SapphireTest;
 
 class NewsletterSendControllerTest extends SapphireTest
 {
-    private static $fixture_file = "Base.yml";
+    protected static $fixture_file = "Base.yml";
 
     public function testEnqueue()
     {

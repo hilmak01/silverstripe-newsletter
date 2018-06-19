@@ -2,12 +2,15 @@
 
 namespace SilverStripe\Newsletter\Model;
 
+use SilverStripe\ORM\ValidationException;
+use SilverStripe\ORM\ValidationResult;
 use SilverStripe\ORM\DataObject;
 use SilverStripe\Control\Email\Email;
 use SilverStripe\Forms\TextField;
 use SilverStripe\Forms\ReadonlyField;
 use SilverStripe\Forms\CheckboxField;
 use SilverStripe\Forms\FieldList;
+use SilverStripe\Core\Convert;
 
 class Recipient extends DataObject
 {
@@ -102,7 +105,8 @@ class Recipient extends DataObject
     protected static $unique_identifier_field = 'Email';
 
     /**
-     * Event handler called before writing to the database. we need to deal with the unique_identifier_field here
+     * Event handler called before writing to the database. we need to deal
+     * with the unique_identifier_field here.
      */
     public function onBeforeWrite()
     {
@@ -114,6 +118,7 @@ class Recipient extends DataObject
         if ($this->$identifierField) {
             // Note: Same logic as Member_Validator class
             $idClause = ($this->ID) ? sprintf(" AND \"Recipient\".\"ID\" <> %d", (int) $this->ID) : '';
+
             $existingRecord = DataObject::get_one(
                 self::class,
                 sprintf(
@@ -123,8 +128,10 @@ class Recipient extends DataObject
                     $idClause
                 )
             );
+
             if ($existingRecord) {
-                throw new ValidationException(new ValidationResult(false, _t(
+                $result = new ValidationResult();
+                $result->addError(_t(
                     'Recipient.ValidationIdentifierFailed',
                     'Can\'t overwrite existing recipient #{id} with identical identifier ({name} = {value}))',
                     'Values in brackets show "fieldname = value", usually denoting an existing email address',
@@ -133,15 +140,23 @@ class Recipient extends DataObject
                         'name' => $identifierField,
                         'value' => $this->$identifierField
                     )
-                )));
+                ));
+
+                throw new ValidationException($result);
             }
         }
 
-        if (!$this->GUID) {
-            $this->GUID = md5($id .'-'. time());
-        }
-
         parent::onBeforeWrite();
+    }
+
+    public function onAfterWrite()
+    {
+        parent::onAfterWrite();
+
+        if (!$this->GUID) {
+            $this->GUID = md5($this->ID .'-'. time());
+            $this->write();
+        }
     }
 
     public function getCMSFields()
