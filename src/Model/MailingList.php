@@ -78,7 +78,7 @@ class MailingList extends DataObject
             $this->Title,
             _t(
                 'Newsletter.NumberRecipients',
-                '{count} recipients',
+                '{count} active recipients',
                 array('count' => $this->ActiveRecipients()->Count())
             )
         );

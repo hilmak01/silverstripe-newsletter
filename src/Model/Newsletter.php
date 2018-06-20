@@ -9,12 +9,20 @@ use SilverStripe\Forms\ReadonlyField;
 use SilverStripe\Control\Email\Email;
 use SilverStripe\Forms\DropdownField;
 use SilverStripe\Forms\HiddenField;
+use SilverStripe\Forms\ReadonlyTransformation;
 use SilverStripe\Forms\LiteralField;
 use SilverStripe\Forms\CheckboxSetField;
 use SilverStripe\Forms\GridField\GridFieldConfig;
+use SilverStripe\Forms\GridField\GridFieldSortableHeader;
+use SilverStripe\Forms\GridField\GridFieldDataColumns;
+use SilverStripe\Forms\GridField\GridFieldFilterHeader;
+use SilverStripe\Forms\GridField\GridFieldPageCount;
+use SilverStripe\Forms\GridField\GridFieldPaginator;
+use SilverStripe\Forms\GridField\GridField;
 use SilverStripe\Control\Director;
 use SilverStripe\Control\Controller;
 use SilverStripe\Newsletter\Control\NewsletterAdmin;
+use SilverStripe\Newsletter\Form\GridField\GridFieldNewsletterSummaryHeader;
 
 class Newsletter extends DataObject implements CMSPreviewable
 {
@@ -120,12 +128,13 @@ class Newsletter extends DataObject implements CMSPreviewable
     public function getCMSFields()
     {
         $fields = parent::getCMSFields();
-        $admin = Email::config()->get('admin_email');
 
+        $admin = Email::config()->get('admin_email');
         $fields->removeByName('FileTracking');
         $fields->removeByName('LinkTracking');
 
         $fields->removeByName('Status');
+
         $fields->addFieldToTab(
             'Root.Main',
             new ReadonlyField('Status', $this->fieldLabel('Status')),
@@ -133,6 +142,7 @@ class Newsletter extends DataObject implements CMSPreviewable
         );
 
         $fields->removeByName("SentDate");
+
         if ($this->Status == "Sent") {
             $fields->addFieldToTab(
                 'Root.Main',
@@ -174,6 +184,7 @@ class Newsletter extends DataObject implements CMSPreviewable
 
         // Only show template selection if there's more than one template set
         $templateSource = $this->templateSource();
+
         if (count($templateSource) > 1) {
             $fields->replaceField(
                 "RenderTemplate",
@@ -266,7 +277,7 @@ class Newsletter extends DataObject implements CMSPreviewable
                     new LiteralField(
                         'RestartQueue',
                         sprintf(
-                            '<a href="%s" class="ss-ui-button" data-icon="arrow-circle-double">%s</a>',
+                            '<a href="%s" class="btn btn-primary font-icon-rocket">%s</a>',
                             $restartLink,
                             _t('Newsletter.RestartQueue', 'Restart queue processing')
                         )
@@ -285,8 +296,6 @@ class Newsletter extends DataObject implements CMSPreviewable
                 );
             }
         }
-
-
 
         return $fields;
     }

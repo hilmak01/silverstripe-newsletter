@@ -10,6 +10,7 @@ use SilverStripe\SiteConfig\SiteConfig;
 use SilverStripe\Forms\GridField\GridFieldDataColumns;
 use SilverStripe\Forms\GridField\GridFieldDetailForm;
 use SilverStripe\Newsletter\Form\GridField\NewsletterGridFieldDetailForm;
+use SilverStripe\Newsletter\Form\GridField\NewsletterGridFieldDetailForm_ItemRequest;
 
 class NewsletterAdmin extends ModelAdmin
 {
@@ -39,16 +40,20 @@ class NewsletterAdmin extends ModelAdmin
     {
         $form = parent::getEditForm($id, $fields);
 
-        //custom handling of the newsletter modeladmin with a specialized action menu for the detail form
         if ($this->modelClass == Newsletter::class) {
             $config = $form->Fields()->first()->getConfig();
-            $config->removeComponentsByType(GridFieldDetailForm::class)
-                ->addComponents(new NewsletterGridFieldDetailForm());
+            $config->removeComponentsByType(GridFieldDetailForm::class);
+
+            $config->addComponent((new NewsletterGridFieldDetailForm())->setItemRequestClass(
+                    NewsletterGridFieldDetailForm_ItemRequest::class
+                ));
 
             $config->getComponentByType(GridFieldDataColumns::class)
                 ->setFieldCasting(array(
                     "Content" => "HTMLText->LimitSentences",
             ));
+
+            $form->Fields()->first()->setConfig($config);
         }
         else if ($this->modelClass == Recipient::class) {
             $config = $form->Fields()->first()->getConfig();
@@ -62,9 +67,14 @@ class NewsletterAdmin extends ModelAdmin
         return $form;
     }
 
+    /**
+     * @return array
+     */
     public static function template_paths()
     {
-        if (!isset(self::$template_paths)) {
+        $paths = self::config()->get('template_paths');
+
+        if (!$paths) {
             if ($config = SiteConfig::current_site_config()) {
                 $theme = $config->Theme;
             } elseif (SSViewer::current_custom_theme()) {
@@ -77,29 +87,29 @@ class NewsletterAdmin extends ModelAdmin
 
             if ($theme) {
                 if (file_exists("../".THEMES_DIR."/".$theme."/templates/email")) {
-                    self::$template_paths[] = THEMES_DIR."/".$theme."/templates/email";
+                    $paths[] = THEMES_DIR."/".$theme."/templates/email";
                 }
 
                 if (file_exists("../".THEMES_DIR."/".$theme."/templates/Email")) {
-                    self::$template_paths[] = THEMES_DIR."/".$theme."/templates/Email";
+                    $paths[] = THEMES_DIR."/".$theme."/templates/Email";
                 }
             }
 
             $project = project();
 
             if (file_exists("../". $project . '/templates/email')) {
-                self::$template_paths[] = $project . '/templates/email';
+                $paths[] = $project . '/templates/email';
             }
 
             if (file_exists("../". $project . '/templates/Email')) {
-                self::$template_paths[] = $project . '/templates/Email';
+                $paths[] = $project . '/templates/Email';
             }
         } else {
-            if (is_string(self::$template_paths)) {
-                self::$template_paths = array(self::$template_paths);
+            if (is_string($paths)) {
+                $paths = array($paths);
             }
         }
 
-        return self::$template_paths;
+        return $paths;
     }
 }

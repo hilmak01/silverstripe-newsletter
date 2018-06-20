@@ -1,5 +1,5 @@
 <div class="cms-navigator">
-	<a href="$EmailPreviewLink" class="ss-ui-button newsletter-preview-email" data-icon="email">
+	<a href="$EmailPreviewLink" class="btn action ss-ui-action-constructive newsletter-preview-email" data-icon="email">
 		<% _t('NewsletterAdmin.SendTestEmail', 'Send Test Email') %>
 	</a>
 

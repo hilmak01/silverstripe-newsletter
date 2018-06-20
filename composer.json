@@ -12,6 +12,7 @@
     }],
     "require": {
         "silverstripe/cms": "^4@dev",
+        "symbiote/silverstripe-queuedjobs": "^4",
         "silverstripe/vendor-plugin": "^1.0"
     },
     "require-dev": {
