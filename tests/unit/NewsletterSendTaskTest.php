@@ -3,6 +3,7 @@
 namespace SilverStripe\Newsletter\Tests;
 
 use SilverStripe\Dev\SapphireTest;
+use SilverStripe\Newsletter\Tasks\NewsletterSendTask;
 
 class NewsletterSendControllerTest extends SapphireTest
 {
@@ -18,11 +19,11 @@ class NewsletterSendControllerTest extends SapphireTest
         $stuck1 = $this->objFromFixture('Recipient', 'stuck1');
         $stuck2 = $this->objFromFixture('Recipient', 'stuck2');
 
-        $oldStuckTimeout = NewsletterSendController::$stuck_timeout;
-        NewsletterSendController::$stuck_timeout = -5;  //this evals to --5 minutes which is +5 minutes, ie: the future
+        $oldStuckTimeout = NewsletterSendTask::$stuck_timeout;
+        NewsletterSendTask::$stuck_timeout = -5;  //this evals to --5 minutes which is +5 minutes, ie: the future
 
         foreach ($newsletters as $newsletter) {
-            $nsc = NewsletterSendController::inst();
+            $nsc = NewsletterSendTask::inst();
             $nsc->enqueue($newsletter);
             $nsc->processQueue($newsletter->ID);
 
@@ -40,13 +41,13 @@ class NewsletterSendControllerTest extends SapphireTest
             }
         }
 
-        NewsletterSendController::$stuck_timeout = $oldStuckTimeout;
+        NewsletterSendTask::$stuck_timeout = $oldStuckTimeout;
     }
 
     public function testDuplicateFiltering()
     {
         $newsletter = $this->objFromFixture('Newsletter', 'all');
-        $nsc = NewsletterSendController::inst();
+        $nsc = NewsletterSendTask::inst();
 
         $added = $nsc->enqueue($newsletter);
         $this->assertGreaterThanOrEqual($added, 4, "4 recipients added");

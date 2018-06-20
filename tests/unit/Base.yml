@@ -52,10 +52,10 @@ SilverStripe\Newsletter\Model\SendRecipientQueue:
   stuck1:
     Status: InProgress
     RetryCount: 0
-    Newsletter: =>Newsletter.monthly
-    Recipient: =>Recipient.stuck1
+    Newsletter: =>SilverStripe\Newsletter\Model\Newsletter.monthly
+    Recipient: =>SilverStripe\Newsletter\Model\Recipient.stuck1
   stuck2:
     Status: InProgress
     RetryCount: 19532342 #high enough retry count that it shouldn't try re-sending
-    Newsletter: =>Newsletter.monthly
-    Recipient: =>Recipient.stuck2
+    Newsletter: =>SilverStripe\Newsletter\Model\Newsletter.monthly
+    Recipient: =>SilverStripe\Newsletter\Model\Recipient.stuck2

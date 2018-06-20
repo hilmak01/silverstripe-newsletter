@@ -11,6 +11,7 @@ use SilverStripe\Forms\ReadonlyField;
 use SilverStripe\Forms\CheckboxField;
 use SilverStripe\Forms\FieldList;
 use SilverStripe\Core\Convert;
+use SilverStripe\Security\RandomGenerator;
 
 class Recipient extends DataObject
 {
@@ -86,10 +87,11 @@ class Recipient extends DataObject
             ));
         }
 
-        if (!Email::validEmailAddress($this->Email)) {
-            $result->error(_t('Newsletter.InvalidEmailAddress',
+        if (!Email::is_valid_address($this->Email)) {
+            $result->error(_t(
+                'Newsletter.InvalidEmailAddress',
                 '"{field}" field is invalid',
-                    array('field' => 'Email')
+                array('field' => 'Email')
             ));
         }
 
@@ -97,39 +99,28 @@ class Recipient extends DataObject
     }
 
     /**
-     * The unique field used to identify this recipient.
-     * Duplication will not be allowed for this feild.
+     * The unique field used to identify this recipient. Duplication will not
+     * be allowed for this feild.
      *
      * @var string
      */
-    protected static $unique_identifier_field = 'Email';
+    private static $unique_identifier_field = 'Email';
 
     /**
-     * Event handler called before writing to the database. we need to deal
-     * with the unique_identifier_field here.
+     *
      */
     public function onBeforeWrite()
     {
-        // If a recipient with the same "unique identifier" already exists with a different ID, don't allow merging.
-        // Note: This does not a full replacement for safeguards in the controller layer (e.g. in a subscription form),
-        // but rather a last line of defense against data inconsistencies.
-        $identifierField = self::$unique_identifier_field;
+        $identifierField = $this->config()->get('unique_identifier_field');
 
-        if ($this->$identifierField) {
-            // Note: Same logic as Member_Validator class
-            $idClause = ($this->ID) ? sprintf(" AND \"Recipient\".\"ID\" <> %d", (int) $this->ID) : '';
+        if ($identifierField && $this->$identifierField) {
+            $existingRecord = self::get()->filter($identifierField, $this->$identifierField);
 
-            $existingRecord = DataObject::get_one(
-                self::class,
-                sprintf(
-                    "\"%s\" = '%s' %s",
-                    $identifierField,
-                    Convert::raw2sql($this->$identifierField),
-                    $idClause
-                )
-            );
+            if ($this->ID) {
+                $existingRecord = $existingRecord->exclude('ID', $this->ID);
+            }
 
-            if ($existingRecord) {
+            if ($existingRecord->exists()) {
                 $result = new ValidationResult();
                 $result->addError(_t(
                     'Recipient.ValidationIdentifierFailed',
@@ -190,8 +181,13 @@ class Recipient extends DataObject
         return $labels;
     }
 
-    /** Returns the title of this Recipient for the MailingList auto-complete add field. The title includes the
-     * email address, so that users with the same name can be distinguished. */
+    /**
+     * Returns the title of this Recipient for the MailingList auto-complete
+     * add field. The title includes the email address, so that users with the
+     * same name can be distinguished.
+     *
+     * @return string
+     */
     public function getTitle()
     {
         $f = '';
@@ -213,6 +209,9 @@ class Recipient extends DataObject
         return $f.$m.$s.$e;
     }
 
+    /**
+     * @return string
+     */
     public function getHashText()
     {
         return substr($this->ValidateHash, 0, 10)."******".substr($this->ValidateHash, -10);
@@ -237,7 +236,6 @@ class Recipient extends DataObject
 
         $this->ValidateHash = $hash;
         $this->ValidateHashExpired = date('Y-m-d H:i:s', time() + (86400 * $lifetime));
-
         $this->write();
 
         return $hash;
@@ -247,15 +245,14 @@ class Recipient extends DataObject
     {
         parent::onBeforeDelete();
 
-        //SendRecipientQueue
         $queueditems = $this->SendRecipientQueue();
+
         if ($queueditems && $queueditems->exists()) {
             foreach ($queueditems as $item) {
                 $item->delete();
             }
         }
 
-        //remove this from its belonged mailing lists
         $mailingLists = $this->MailingLists()->removeAll();
     }
 
@@ -269,6 +266,7 @@ class Recipient extends DataObject
                 $can = $can && !($queueditem->Status === 'Scheduled' && $queueditem->Status === 'InProgress');
             }
         }
+
         return $can;
     }
 

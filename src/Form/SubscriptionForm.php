@@ -10,6 +10,7 @@ use SilverStripe\Newsletter\Model\MailingList;
 use SilverStripe\Forms\CompositeField;
 use SilverStripe\Core\Convert;
 use SilverStripe\Forms\FieldList;
+use SilverStripe\Control\Email\Email;
 
 class SubscriptionForm extends Form
 {

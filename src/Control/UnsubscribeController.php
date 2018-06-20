@@ -3,6 +3,11 @@
 namespace SilverStripe\Newsletter\Control;
 
 use PageController;
+use SilverStripe\Newsletter\Model\Recipient;
+use SilverStripe\SiteConfig\SiteConfig;
+use SilverStripe\View\Requirements;
+use SilverStripe\ORM\ArrayList;
+use SilverStripe\Core\Convert;
 
 class UnsubscribeController extends PageController
 {
@@ -21,44 +26,48 @@ class UnsubscribeController extends PageController
     public function init()
     {
         parent::init();
-        Requirements::css('newsletter/css/SubscriptionPage.css');
-        Requirements::javascript(THIRDPARTY_DIR . '/jquery/jquery.js');
-        Requirements::javascript(THIRDPARTY_DIR . '/jquery-validate/jquery.validate.min.js');
+
+        Requirements::css('silverstripe/newsletter:client/css/SubscriptionPage.css');
     }
 
-    public static function set_days_unsubscribe_link_alive($days)
-    {
-        self::$days_unsubscribe_link_alive = $days;
-    }
-
-    public static function get_days_unsubscribe_link_alive()
-    {
-        return self::$days_unsubscribe_link_alive;
-    }
-
+    /**
+     * @param string $action
+     *
+     * @return string
+     */
     public function RelativeLink($action = null)
     {
         return "unsubscribe/$action";
     }
 
-    private function getRecipient()
+    /**
+     * @return Recipient
+     */
+    protected function getRecipient()
     {
         $validateHash = Convert::raw2sql($this->urlParams['ValidateHash']);
+
         if ($validateHash) {
             $recipient = Recipient::get()->filter("ValidateHash", $validateHash)->first();
             $now = date('Y-m-d H:i:s');
+
             if ($now <= $recipient->ValidateHashExpired) {
                 return $recipient;
             }
         }
     }
 
-    private function getMailingLists($recipient = null)
+    /**
+     * @param Recipient $recipient
+     *
+     * @return SS_List
+     */
+    protected function getMailingLists($recipient = null)
     {
         $siteConfig = SiteConfig::current_site_config();
 
         if ($siteConfig->GlobalUnsubscribe) {
-            return $mailinglists = $recipient->MailingLists();
+            return $recipient->MailingLists();
         } else {
             $mailinglistIDs = $this->urlParams['IDs'];
 
@@ -70,9 +79,11 @@ class UnsubscribeController extends PageController
                 ]);
             }
         }
+
+        return new ArrayList();
     }
 
-    private function getMailingListsByUnsubscribeRecords($recordIDs)
+    protected function getMailingListsByUnsubscribeRecords($recordIDs)
     {
         $recordIDs = explode(',', $recordIDs);
         $unsubscribeRecords = UnsubscribeRecord::get()
@@ -97,6 +108,7 @@ class UnsubscribeController extends PageController
     {
         $recipient = $this->getRecipient();
         $mailinglists = $this->getMailingLists($recipient);
+
         if ($recipient && $recipient->exists() && $mailinglists && $mailinglists->count()) {
             $unsubscribeRecordIDs = array();
             $this->unsubscribeFromLists($recipient, $mailinglists, $unsubscribeRecordIDs);
@@ -112,24 +124,23 @@ class UnsubscribeController extends PageController
         }
     }
 
+    /**
+     * @return ResubscribeForm
+     */
+    public function ResubscribeForm()
+    {
+        return ResubscribeForm::create($this, __FUNCTION__);
+    }
+
+    /**
+     *
+     */
     public function done()
     {
         $unsubscribeRecordIDs = $this->urlParams['IDs'];
         $hash = $this->urlParams['ID'];
+
         if ($unsubscribeRecordIDs) {
-            $fields = new FieldList(
-                new HiddenField("UnsubscribeRecordIDs", "", $unsubscribeRecordIDs),
-                new HiddenField("Hash", "", $hash),
-                new LiteralField("ResubscribeText",
-                    _t('Newsletter.ResubscribeText', 'Click the "Resubscribe" if you unsubscribed by accident and want to re-subscribe'))
-            );
-
-            $actions = new FieldList(
-                new FormAction("resubscribe", _t('Newsletter.ResubscribeButton', 'Resubscribe'))
-            );
-
-            $form = new Form($this, "ResubscribeForm", $fields, $actions);
-            $form->setFormAction($this->Link('resubscribe'));
             $mailinglists = $this->getMailingListsByUnsubscribeRecords($unsubscribeRecordIDs);
 
             if ($mailinglists && $mailinglists->count()) {
@@ -151,6 +162,9 @@ class UnsubscribeController extends PageController
             }
         }
 
+        $form = $this->ResubscribeForm();
+        $form->loadDataFrom($this->request->getPOST());
+
         return $this->customise(array(
             'Title' => _t('Newsletter.UNSUBSCRIBEDTITLE', 'Unsubscribed'),
             'Content' => $content,
@@ -159,31 +173,8 @@ class UnsubscribeController extends PageController
     }
 
     /**
-    * Unsubscribe the user from the given lists.
-    */
-    public function resubscribe()
-    {
-        if (isset($_POST['Hash']) && isset($_POST['UnsubscribeRecordIDs'])) {
-            $recipient = DataObject::get_one(
-                'Recipient',
-                "\"ValidateHash\" = '" . Convert::raw2sql($_POST['Hash']) . "'"
-            );
-            $mailinglists = $this->getMailingListsByUnsubscribeRecords($_POST['UnsubscribeRecordIDs']);
-            if ($recipient && $recipient->exists() && $mailinglists && $mailinglists->count()) {
-                $recipient->MailingLIsts()->addMany($mailinglists);
-            }
-            $url = Director::absoluteBaseURL() . $this->RelativeLink('undone') . "/" . $_POST['Hash']. "/" .
-                    $_POST['UnsubscribeRecordIDs'];
-            Controller::curr()->redirect($url, 302);
-            return $url;
-        } else {
-            return $this->customise(array(
-                'Title' => _t('Newsletter.INVALIDRESUBSCRIBE', 'Invalid resubscrible'),
-                'Content' => _t('Newsletter.INVALIDRESUBSCRIBECONTENT', 'This resubscribe link is invalid')
-            ))->renderWith('Page');
-        }
-    }
-
+     *
+     */
     public function undone()
     {
         $recipient = $this->getRecipient();
@@ -215,18 +206,51 @@ class UnsubscribeController extends PageController
         ))->renderWith('Page');
     }
 
+    /**
+     * @param Recipient $recipient
+     * @param SS_List $lists
+     * @param array $recordsIds
+     */
     protected function unsubscribeFromLists($recipient, $lists, &$recordsIDs)
     {
         if ($lists && $lists->count()) {
             foreach ($lists as $list) {
                 $recipient->Mailinglists()->remove($list);
-                $unsubscribeRecord = new UnsubscribeRecord();
+
+                $unsubscribeRecord = UnsubscribeRecord::create();
                 $unsubscribeRecord->unsubscribe($recipient, $list);
+
                 $recordsIDs[] = $unsubscribeRecord->ID;
+
+                $this->extend('onUnsubscribeFromLists', $recipient, $lists);
             }
         }
     }
 
+    /**
+     * @param Recipient $recipient
+     * @param array $data
+     */
+    public function sendUnsubscribeEmail($recipient, $data)
+    {
+        $email = Email::create();
+        $email->setTo($recipient->Email);
+        $email->setTemplate('UnsubscribeLinkEmail');
+        $email->setSubject(_t(
+            'Newsletter.ConfirmUnsubscribeSubject',
+            'Confirmation of your unsubscribe request'
+        ));
+
+        $email->populateTemplate($data);
+
+        $this->extend('updateUnsubscribeEmail', $email);
+
+        $email->send();
+    }
+
+    /**
+     *
+     */
     public function sendUnsubscribeLink()
     {
         //get the form object (we just need its name to set the session message)
@@ -248,23 +272,17 @@ class UnsubscribeController extends PageController
                 $recipient->generateValidateHashAndStore($days);
             }
 
+            $from = Email::config()->get('send_all_emails_from');
+
             $templateData = array(
+                'Recipient' => $recipient,
+                'From' => $from,
                 'FirstName' => $recipient->FirstName,
                 'UnsubscribeLink' =>
                     Director::absoluteBaseURL() . "unsubscribe/index/" . $recipient->ValidateHash . "/$listIDs"
             );
-            //send unsubscribe link email
-            $email = new Email();
-            $email->setTo($recipient->Email);
-            $from = Email::getAdminEmail();
-            $email->setFrom($from);
-            $email->setTemplate('UnsubscribeLinkEmail');
-            $email->setSubject(_t(
-                'Newsletter.ConfirmUnsubscribeSubject',
-                'Confirmation of your unsubscribe request'
-            ));
-            $email->populateTemplate($templateData);
-            $email->send();
+
+            $this->sendUnsubscribeEmail($recipient, $templateData);
 
             $form->sessionMessage(
                 _t(
@@ -278,6 +296,6 @@ class UnsubscribeController extends PageController
             $form->sessionMessage(_t('Newsletter.BadEmailMessage', 'Email address not found'), "bad");
         }
 
-        Controller::curr()->redirectBack();
+        return Controller::curr()->redirectBack();
     }
 }
