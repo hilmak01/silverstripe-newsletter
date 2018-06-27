@@ -34,7 +34,10 @@ class NewsletterAdmin extends ModelAdmin
         Recipient::class
     ];
 
-    private static $template_paths = null;
+    /**
+     * @config
+     */
+    private static $template_paths = [];
 
     public function getEditForm($id = null, $fields = null)
     {

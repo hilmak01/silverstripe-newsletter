@@ -3,10 +3,14 @@
 namespace SilverStripe\Newsletter\Jobs;
 
 use SilverStripe\Newsletter\Model\Newsletter;
+use SilverStripe\Core\Injector\Injector;
+use Psr\Log\LoggerInterface;
 use Symbiote\QueuedJobs\Services\AbstractQueuedJob;
 
 class NewsletterMailerJob extends AbstractQueuedJob
 {
+    private static $process_page_size = 10;
+
     protected $newsletterId;
 
     /**
@@ -16,7 +20,6 @@ class NewsletterMailerJob extends AbstractQueuedJob
     {
         $this->newsletterId = $newsletterId;
         $this->currentStep = 0;
-        $this->totalSteps = count($this->pagesToProcess);
     }
 
     /**
@@ -30,11 +33,19 @@ class NewsletterMailerJob extends AbstractQueuedJob
     }
 
     /**
+     * @return Newsletter
+     */
+    public function getNewsletter()
+    {
+        return Newsletter::get()->byId($this->newsletterId);
+    }
+
+    /**
      * @return string
      */
     public function getTitle()
     {
-        return _t(__CLASS__ . '.REGENERATE', 'Regenerate Google sitemap .xml file');
+        return _t(__CLASS__ . '.MAILER', 'Newsletter Mailer');
     }
 
     /**
@@ -48,7 +59,7 @@ class NewsletterMailerJob extends AbstractQueuedJob
     }
 
     /**
-     * Note that this is duplicated for backwards compatibility purposes...
+     * This is run once per job, set ups the mailing queue.
      */
     public function setup()
     {
@@ -56,49 +67,115 @@ class NewsletterMailerJob extends AbstractQueuedJob
 
         Environment::increaseTimeLimitTo();
         Environment::increaseMemoryLimitTo();
+
+        $newsletter = $this->getNewsletter();
+
+        if (!$newsletter) {
+            return;
+        }
+
+        $lists = $newsletter->MailingLists();
+        $queueCount = 0;
+
+        foreach ($lists as $list) {
+            foreach ($list->Recipients()->column('ID') as $recipientID) {
+                $existingQueue = SendRecipientQueue::get()->filter([
+                    'RecipientID' => $recipientID,
+                    'NewsletterID' => $newsletter->ID
+                ]);
+
+                if ($existingQueue->exists()) {
+                    continue;
+                }
+
+                $queueItem = SendRecipientQueue::create();
+                $queueItem->NewsletterID = $newsletter->ID;
+                $queueItem->RecipientID = $recipientID;
+                $queueItem->Status = 'Scheduled';
+                $queueItem->write();
+                $queueCount++;
+            }
+        }
+
+        $this->totalSteps = $queueCount;
     }
 
     /**
-     * On any restart, make sure to check that our temporary file is being
-     * created still.
+     *
      */
     public function prepareForRestart()
     {
         parent::prepareForRestart();
 
+        Environment::increaseTimeLimitTo();
+        Environment::increaseMemoryLimitTo();
 
     }
 
     public function process()
     {
-        $remainingChildren = $this->pagesToProcess;
+        $newsletter = $this->getNewsletter();
 
-        // if there's no more, we're done!
-        if (!count($remainingChildren)) {
-            $this->completeJob();
-
-            $this->isComplete = true;
+        if (!$newsletter) {
             return;
         }
 
-        // todoo
+        $remainingChildren = $newsletter->SendRecipientQueue()->filter('Status', 'Scheduled');
 
-        // and now we store the new list of remaining children
-        $this->pagesToProcess = $remainingChildren;
-        $this->currentStep++;
-
-        if (!count($remainingChildren)) {
+        // if there's no more, we're done!
+        if (!$remainingChildren->exists()) {
             $this->completeJob();
             $this->isComplete = true;
+
             return;
+        }
+
+        $records = $remainingChildren->limit(0, self::config()->get('process_page_size'))->column('ID');
+        $send = [];
+
+        // mark all as in progress first.
+        foreach ($records as $recordId) {
+            $this->currentStep++;
+
+            $record = SendRecipientQueue::get()->byId($recordId);
+
+            if ($record) {
+                $record->Status = 'InProgress';
+
+                try {
+                    $record->write();
+                    $send[] = $recordId;
+                } catch (Exception $e) {
+                    Injector::inst()->get(LoggerInterface::class)->error($e->getMessage())
+                }
+            }
+        }
+
+        // send each of notices
+        foreach ($send as $recordId) {
+            $record = SendRecipientQueue::get()->byId($recordId);
+
+            if ($record && $record->Status == 'InProgress') {
+                try {
+                    $record->send();
+                } catch (Exception $e) {
+                    Injector::inst()->get(LoggerInterface::class)->error($e->getMessage())
+                }
+            }
         }
     }
 
     /**
-     * Markes the job as complete
+     * Marks the job as complete
      */
     protected function completeJob()
     {
+        $newsletter = $this->getNewsletter();
 
+        if ($newsletter) {
+            $newsletter->Status = 'Sent';
+            $newsletter->extend('onCompleteJob');
+            $newsletter->write();
+        }
     }
 }

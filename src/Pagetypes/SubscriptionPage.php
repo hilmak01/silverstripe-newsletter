@@ -92,8 +92,6 @@ class SubscriptionPage extends Page
             }
         }
 
-
-
         //Since Email field is the Recipient's identifier,
         //and newsletters subscription is non-sence if no email is given by the user,
         //we should force that email to be checked and required.

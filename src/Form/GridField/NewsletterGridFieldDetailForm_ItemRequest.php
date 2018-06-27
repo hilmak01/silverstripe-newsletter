@@ -12,7 +12,7 @@ use SilverStripe\Security\Member;
 use SilverStripe\View\ArrayData;
 use SilverStripe\View\Requirements;
 use SilverStripe\Control\Controller;
-use SilverStripe\Newsletter\Tasks\NewsletterSendTask;
+use SilverStripe\Newsletter\Jobs\NewsletterMailerJob;
 
 class NewsletterGridFieldDetailForm_ItemRequest extends GridFieldDetailForm_ItemRequest
 {
@@ -43,10 +43,14 @@ class NewsletterGridFieldDetailForm_ItemRequest extends GridFieldDetailForm_Item
         // send button
         if ($this->record->Status == "Draft") { //only allow sending when the newsletter is "Draft"
             $sendButton = FormAction::create('doSend', _t('Newsletter.Send', 'Send'));
-            $actions->insertBefore($sendButton
-                            ->addExtraClass('btn action btn-primary font-icon-rocket')
-                            ->setUseButtonTag(true), 'action_doSave');
+            $actions->insertBefore(
+                $sendButton
+                    ->addExtraClass('btn action btn-primary font-icon-rocket')
+                    ->setUseButtonTag(true),
+                'action_doSave'
+            );
         }
+
         return $actions;
     }
 
@@ -86,10 +90,10 @@ class NewsletterGridFieldDetailForm_ItemRequest extends GridFieldDetailForm_Item
             }
 
             $navigator->customise(
-                new ArrayData(array('EmailPreviewLink' => $newsletter->Link('emailpreview'.$emailLink)))
+                new ArrayData([
+                    'EmailPreviewLink' => $newsletter->Link('emailpreview'.$emailLink)
+                ])
             );
-
-            Requirements::javascript('silverstripe/newsletter:client/javascript/NewsletterAdminEmailPreview.js');
 
             return $navigator->renderWith('NewsletterAdmin_SilverStripeNavigator');
         } else {
@@ -132,6 +136,10 @@ class NewsletterGridFieldDetailForm_ItemRequest extends GridFieldDetailForm_Item
         }
     }
 
+    /**
+     * @param array $data
+     * @param Form $form
+     */
     public function doSaveAsNew($data, $form)
     {
         $originalID = $data['NEWSLETTER_ORIGINAL_ID'];
@@ -211,8 +219,10 @@ class NewsletterGridFieldDetailForm_ItemRequest extends GridFieldDetailForm_Item
 
         try {
             $form->saveInto($this->record);
+
             $this->record->Status = 'Sending';  //custom: changing the status of to indicate we are sending
             $this->record->write();
+
             $this->gridField->getList()->add($this->record);
         } catch (ValidationException $e) {
             $form->sessionMessage($e->getResult()->message(), 'bad');
@@ -230,14 +240,8 @@ class NewsletterGridFieldDetailForm_ItemRequest extends GridFieldDetailForm_Item
             return $responseNegotiator->respond($controller->getRequest());
         }
 
-        //custom code
-        $nsc = NewsletterSendTask::inst();
-        $nsc->enqueue($this->record);
-        $nsc->processQueueOnShutdown($this->record->ID);
-
-
-        //javascript hides the success message appropriately
-        Requirements::javascript('silverstripe/newsletter:javascript/NewsletterSendConfirmation.js');
+        $sendNewsletter = new NewsletterMailerJob($this->record->ID);
+        singleton(QueuedJobService::class)->queueJob($sendNewsletter);
 
         $message = _t(
             'NewsletterAdmin.SendMessage',

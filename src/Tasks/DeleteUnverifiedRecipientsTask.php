@@ -26,7 +26,7 @@ class DeleteUnverifiedRecipientsTask extends BuildTask
     }
 
     public function delete_trunk($offset) {
-        $days =  SubscriptionPage::get_days_verification_link_alive();
+        $days =  (int) SubscriptionPage::config()->get('days_verification_link_alive');
 
         $objects = Recipient::get()->filter([
             "Verified" => 0
@@ -43,6 +43,7 @@ class DeleteUnverifiedRecipientsTask extends BuildTask
                 }
             }
         }
+
         return $count;
     }
 }

@@ -105,6 +105,12 @@ class NewsletterEmail extends Email
                             continue;
                         }
 
+                        if ((substr(strtolower($link), 0, 15) == 'newsletterlinks')) {
+                            $replacements[$link] = $link;
+
+                            continue;
+                        }
+
                         $tracked = NewsletterTrackedLink::get()->filter([
                             'NewsletterID' => $id,
                             'Original' => $link

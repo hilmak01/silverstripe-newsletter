@@ -266,26 +266,8 @@ class Newsletter extends DataObject implements CMSPreviewable
 
             $fields->addFieldToTab('Root.SentTo', $sendRecipientGrid);
 
-            //only show restart queue button if the newsletter is stuck in "sending"
-            //only show the restart queue button if the user can run the build task (i.e. has full admin permissions)
-            if ($this->Status == "Sending" && Permission::check('ADMIN')) {
-                $restartLink = Controller::join_links(
-                    Director::absoluteBaseURL(),
-                    'dev/tasks/NewsletterSendController?newsletter='.$this->ID
-                );
-                $fields->addFieldToTab('Root.SentTo',
-                    new LiteralField(
-                        'RestartQueue',
-                        sprintf(
-                            '<a href="%s" class="btn btn-primary font-icon-rocket">%s</a>',
-                            $restartLink,
-                            _t('Newsletter.RestartQueue', 'Restart queue processing')
-                        )
-                    )
-                );
-            }
-
-            //only show the TrackedLinks tab, if there are tracked links in the newsletter and the status is "Sent"
+            // only show the TrackedLinks tab, if there are tracked links in
+            // the newsletter and the status is "Sent"
             if ($this->TrackedLinks()->count() > 0) {
                 $fields->addFieldToTab('Root.TrackedLinks', GridField::create(
                         'TrackedLinks',
@@ -301,8 +283,8 @@ class Newsletter extends DataObject implements CMSPreviewable
     }
 
     /**
-     * return array containing all possible email templates file name
-     * under the folders of both theme and project specific folder.
+     * Return array containing all possible email templates file name under the
+     * folders of both theme and project specific folder.
      *
      * @return array
      */
