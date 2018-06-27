@@ -11,6 +11,7 @@ use SilverStripe\Forms\GridField\GridFieldDataColumns;
 use SilverStripe\Forms\GridField\GridFieldDetailForm;
 use SilverStripe\Newsletter\Form\GridField\NewsletterGridFieldDetailForm;
 use SilverStripe\Newsletter\Form\GridField\NewsletterGridFieldDetailForm_ItemRequest;
+use SilverStripe\View\SSViewer;
 
 class NewsletterAdmin extends ModelAdmin
 {
@@ -32,6 +33,12 @@ class NewsletterAdmin extends ModelAdmin
         Newsletter::class,
         MailingList::class,
         Recipient::class
+    ];
+
+    private static $admin_themes = [
+        'silverstripe/admin:cms-forms',
+        'silverstripe/newsletter:newsletter-emails',
+        SSViewer::DEFAULT_THEME,
     ];
 
     /**

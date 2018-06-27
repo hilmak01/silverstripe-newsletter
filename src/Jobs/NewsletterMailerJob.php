@@ -146,7 +146,7 @@ class NewsletterMailerJob extends AbstractQueuedJob
                     $record->write();
                     $send[] = $recordId;
                 } catch (Exception $e) {
-                    Injector::inst()->get(LoggerInterface::class)->error($e->getMessage())
+                    Injector::inst()->get(LoggerInterface::class)->error($e->getMessage());
                 }
             }
         }
@@ -159,7 +159,7 @@ class NewsletterMailerJob extends AbstractQueuedJob
                 try {
                     $record->send();
                 } catch (Exception $e) {
-                    Injector::inst()->get(LoggerInterface::class)->error($e->getMessage())
+                    Injector::inst()->get(LoggerInterface::class)->error($e->getMessage());
                 }
             }
         }

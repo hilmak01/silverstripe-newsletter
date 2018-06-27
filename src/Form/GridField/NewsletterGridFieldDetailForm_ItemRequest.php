@@ -7,11 +7,11 @@ use SilverStripe\Forms\FormAction;
 use SilverStripe\Forms\HiddenField;
 use SilverStripe\Forms\LiteralField;
 use SilverStripe\Newsletter\Model\Newsletter;
-use SilverStripe\CMS\Controllers\SilverStripeNavigator;
 use SilverStripe\Security\Member;
 use SilverStripe\View\ArrayData;
 use SilverStripe\View\Requirements;
 use SilverStripe\Control\Controller;
+use SilverStripe\Core\Config\Config;
 use SilverStripe\Newsletter\Jobs\NewsletterMailerJob;
 
 class NewsletterGridFieldDetailForm_ItemRequest extends GridFieldDetailForm_ItemRequest
@@ -24,7 +24,6 @@ class NewsletterGridFieldDetailForm_ItemRequest extends GridFieldDetailForm_Item
     protected function getFormActions()
     {
         $actions = parent::getFormActions();
-
 
         if (empty($this->record->Status) || $this->record->Status == "Draft") {
             // save draft button
@@ -49,56 +48,25 @@ class NewsletterGridFieldDetailForm_ItemRequest extends GridFieldDetailForm_Item
                     ->setUseButtonTag(true),
                 'action_doSave'
             );
+
+            $viewPreviewButton = FormAction::create('doViewPreview', _t('Newsletter.ViewPreview', 'View Preview'));
+            $actions->insertBefore(
+                $viewPreviewButton
+                    ->addExtraClass('btn action btn-outline btn-outline-info btn-hide-outline font-icon-eye')
+                    ->setUseButtonTag(true),
+                'action_doDelete'
+            );
+
+            $sendPreviewButton = FormAction::create('doSendPreview', _t('Newsletter.SendPreview', 'Send Test Preview'));
+            $actions->insertBefore(
+                $sendPreviewButton
+                    ->addExtraClass('btn action btn-outline btn-outline-info btn-hide-outline font-icon-rocket')
+                    ->setUseButtonTag(true),
+                'action_doDelete'
+            );
         }
 
         return $actions;
-    }
-
-    public function ItemEditForm()
-    {
-        $form = parent::ItemEditForm();
-        // Do these action update only when the current record is_a newsletter
-        if ($this->record && $this->record instanceof Newsletter) {
-            $form->Fields()->push(new HiddenField("PreviewURL", "PreviewURL", $this->LinkPreview()));
-
-            // Added in-line to the form, but plucked into different view by LeftAndMain.Preview.js upon load
-            $navField = new LiteralField('SilverStripeNavigator', $this->getSilverStripeNavigator());
-            $navField->setAllowHTML(true);
-            $form->Fields()->push($navField);
-        }
-        return $form;
-    }
-
-    /**
-     * Used for preview controls
-     *
-     * @return ArrayData
-     */
-    public function getSilverStripeNavigator()
-    {
-        $newsletter = $this->record;
-
-        if ($newsletter) {
-            $navigator = new SilverStripeNavigator($newsletter);
-
-            //create the link the send a preview email
-            $member = Member::currentUser();
-            $emailLink = '?email=';
-
-            if ($member) {
-                $emailLink .= $member->Email;
-            }
-
-            $navigator->customise(
-                new ArrayData([
-                    'EmailPreviewLink' => $newsletter->Link('emailpreview'.$emailLink)
-                ])
-            );
-
-            return $navigator->renderWith('NewsletterAdmin_SilverStripeNavigator');
-        } else {
-            return false;
-        }
     }
 
     /**
@@ -106,6 +74,9 @@ class NewsletterGridFieldDetailForm_ItemRequest extends GridFieldDetailForm_Item
      */
     public function emailpreview()
     {
+        $origState = Config::inst()->get('SSViewer', 'theme_enabled');
+        Config::inst()->update('SSViewer', 'theme_enabled', true);
+
         $request = Controller::curr()->getRequest();
         $emailVar = $request->getVar('email');
 
@@ -120,6 +91,7 @@ class NewsletterGridFieldDetailForm_ItemRequest extends GridFieldDetailForm_Item
         $newsletter = $this->record;
         $email = NewsletterEmail::create($newsletter, $recipient, true);
         $email->send();
+        Config::inst()->update('SSViewer', 'theme_enabled', $origState);
 
         return Controller::curr()->redirectBack();
     }
@@ -265,7 +237,12 @@ class NewsletterGridFieldDetailForm_ItemRequest extends GridFieldDetailForm_Item
         }
     }
 
-    public function preview($data)
+    public function doSendPreview($data, $form)
+    {
+        return $this->record->render();
+    }
+
+    public function doViewPreview($data, $form)
     {
         return $this->record->render();
     }

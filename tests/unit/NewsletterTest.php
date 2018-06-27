@@ -3,23 +3,16 @@
 namespace SilverStripe\Newsletter\Tests;
 
 use SilverStripe\Dev\SapphireTest;
+use SilverStripe\Newsletter\Model\Newsletter;
 
 class NewsletterTest extends SapphireTest
 {
     protected static $fixture_file = "Base.yml";
 
-    public function testRendersWithCustomTemplate()
+    public function testGetCMSFields()
     {
-        $this->markTestIncomplete();
-    }
+        $newsletter = $this->objFromFixture(Newsletter::class, 'daily');
 
-    public function testCanNotDeleteWhileSending()
-    {
-        $this->markTestIncomplete();
-    }
-
-    public function testListsTemplatesFromCustomPath()
-    {
-        $this->markTestIncomplete();
+        $this->assertEquals(FieldList::class, $newsletter->getCMSFields());
     }
 }

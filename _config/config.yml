@@ -11,3 +11,6 @@ SilverStripe\Control\Director:
 SilverStripe\Newsletter\Control\NewsletterAdmin:
   extra_requirements_javascript:
     - 'silverstripe/newsletter:client/javascript/NewsletterAdminEmailPreview.js'
+SilverStripe\View\SSViewer:
+  themes:
+    - 'silverstripe\newsletter:newsletter-emails'

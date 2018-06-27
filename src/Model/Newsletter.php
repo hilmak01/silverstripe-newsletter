@@ -8,6 +8,7 @@ use SilverStripe\ORM\CMSPreviewable;
 use SilverStripe\Forms\ReadonlyField;
 use SilverStripe\Control\Email\Email;
 use SilverStripe\Forms\DropdownField;
+use SilverStripe\Forms\FieldList;
 use SilverStripe\Forms\HiddenField;
 use SilverStripe\Forms\ReadonlyTransformation;
 use SilverStripe\Forms\LiteralField;
@@ -21,7 +22,10 @@ use SilverStripe\Forms\GridField\GridFieldPaginator;
 use SilverStripe\Forms\GridField\GridField;
 use SilverStripe\Control\Director;
 use SilverStripe\Control\Controller;
+use SilverStripe\Control\HTTP;
+use SilverStripe\View\Requirements;
 use SilverStripe\Newsletter\Control\NewsletterAdmin;
+use SilverStripe\Newsletter\Control\Email\NewsletterEmail;
 use SilverStripe\Newsletter\Form\GridField\GridFieldNewsletterSummaryHeader;
 
 class Newsletter extends DataObject implements CMSPreviewable
@@ -117,167 +121,161 @@ class Newsletter extends DataObject implements CMSPreviewable
         return $result;
     }
 
-    /**
-     * Returns a FieldSet with which to create the CMS editing form.
-     * You can use the extend() method of FieldSet to create customised forms for your other
-     * data objects.
-     *
-     * @param Controller
-     * @return FieldSet
-     */
     public function getCMSFields()
     {
-        $fields = parent::getCMSFields();
+        $this->beforeUpdateCMSFields(function (FieldList $fields) {
+            $admin = Email::config()->get('admin_email');
+            $fields->removeByName('FileTracking');
+            $fields->removeByName('LinkTracking');
 
-        $admin = Email::config()->get('admin_email');
-        $fields->removeByName('FileTracking');
-        $fields->removeByName('LinkTracking');
+            $fields->removeByName('Status');
 
-        $fields->removeByName('Status');
-
-        $fields->addFieldToTab(
-            'Root.Main',
-            new ReadonlyField('Status', $this->fieldLabel('Status')),
-            'Subject'
-        );
-
-        $fields->removeByName("SentDate");
-
-        if ($this->Status == "Sent") {
             $fields->addFieldToTab(
                 'Root.Main',
-                new ReadonlyField('SentDate', $this->fieldLabel('SentDate')),
+                new ReadonlyField('Status', $this->fieldLabel('Status')),
                 'Subject'
             );
-        }
 
-        $fields->dataFieldByName('SendFrom')
-            ->setValue($admin)
-            ->setAttribute('placeholder', 'My Name <admin@example.org>');
+            $fields->removeByName("SentDate");
 
-        $fields->dataFieldByName('ReplyTo')
-            ->setValue($admin)
-            ->setAttribute('placeholder', 'admin@example.org')
-            ->setDescription(_t(
-                'Newsletter.ReplyToDesc',
-                'Any undeliverable emails will be collected in this mailbox'
-            ));
-
-        $fields->removeFieldFromTab('Root.SendRecipientQueue', "SendRecipientQueue");
-        $fields->removeByName('SendRecipientQueue');
-        $fields->removeByName('TrackedLinks');
-
-        if ($this->Status != 'Sent') {
-            $contentHelp = '<strong>'
-                . _t('Newsletter.FormattingHelp', 'Formatting Help')
-                . '</strong><br />';
-            $contentHelp .= '<ul>';
-            foreach ($this->getAvailablePlaceholders() as $title => $description) {
-                $contentHelp .= sprintf('<li><em>$%s</em>: %s</li>', $title, $description);
-            }
-            $contentHelp .= '</ul>';
-            $contentField = $fields->dataFieldByName('Content');
-            if ($contentField) {
-                $contentField->setDescription($contentHelp);
-            }
-        }
-
-        // Only show template selection if there's more than one template set
-        $templateSource = $this->templateSource();
-
-        if (count($templateSource) > 1) {
-            $fields->replaceField(
-                "RenderTemplate",
-                new DropdownField("RenderTemplate", _t('NewsletterAdmin.RENDERTEMPLATE',
-                    'Template the newsletter render to'),
-                $templateSource)
-            );
-
-            $explanationTitle = _t("Newletter.TemplateExplanationTitle",
-                "Select a styled template (.ss template) that this newsletter renders with"
-            );
-            $fields->insertBefore(
-                LiteralField::create("TemplateExplanationTitle", "<h5>$explanationTitle</h5>"),
-                "RenderTemplate"
-            );
-            if (!$this->ID) {
-                $explanation1 = _t("Newletter.TemplateExplanation1",
-                    'You should make your own styled SilverStripe templates	make sure your templates have a'
-                    . '$Body coded so the newletter\'s content could be clearly located in your templates'
+            if ($this->Status == "Sent") {
+                $fields->addFieldToTab(
+                    'Root.Main',
+                    new ReadonlyField('SentDate', $this->fieldLabel('SentDate')),
+                    'Subject'
                 );
-                $explanation2 = _t("Newletter.TemplateExplanation2",
-                    "Make sure your newsletter templates could be looked up in the dropdown list below by
-					either placing them under your theme directory,	e.g. themes/mytheme/templates/email/
-					");
-                $explanation3 = _t("Newletter.TemplateExplanation3",
-                    "or under your project directory e.g. mysite/templates/email/
-					");
-                $fields->insertBefore(
-                    LiteralField::create("TemplateExplanation1", "<p class='help'>$explanation1</p>"),
-                    "RenderTemplate"
+            }
+
+            $fields->dataFieldByName('SendFrom')
+                ->setValue($admin)
+                ->setAttribute('placeholder', 'My Name <admin@example.org>');
+
+            $fields->dataFieldByName('ReplyTo')
+                ->setValue($admin)
+                ->setAttribute('placeholder', 'admin@example.org')
+                ->setDescription(_t(
+                    'Newsletter.ReplyToDesc',
+                    'Any undeliverable emails will be collected in this mailbox'
+                ));
+
+            $fields->removeFieldFromTab('Root.SendRecipientQueue', "SendRecipientQueue");
+            $fields->removeByName('SendRecipientQueue');
+            $fields->removeByName('TrackedLinks');
+
+            if ($this->Status != 'Sent') {
+                $contentHelp = '<strong>'
+                    . _t('Newsletter.FormattingHelp', 'Formatting Help')
+                    . '</strong><br />';
+                $contentHelp .= '<ul>';
+                foreach ($this->getAvailablePlaceholders() as $title => $description) {
+                    $contentHelp .= sprintf('<li><em>$%s</em>: %s</li>', $title, $description);
+                }
+                $contentHelp .= '</ul>';
+                $contentField = $fields->dataFieldByName('Content');
+                if ($contentField) {
+                    $contentField->setDescription($contentHelp);
+                }
+            }
+
+            // Only show template selection if there's more than one template set
+            $templateSource = $this->templateSource();
+
+            if (count($templateSource) > 1) {
+                $fields->replaceField(
+                    "RenderTemplate",
+                    new DropdownField("RenderTemplate", _t('NewsletterAdmin.RENDERTEMPLATE',
+                        'Template the newsletter render to'),
+                    $templateSource)
+                );
+
+                $explanationTitle = _t("Newletter.TemplateExplanationTitle",
+                    "Select a styled template (.ss template) that this newsletter renders with"
                 );
                 $fields->insertBefore(
-                    LiteralField::create(
-                        "TemplateExplanation2",
-                        "<p class='help'>$explanation2<br />$explanation3</p>"
-                    ),
+                    LiteralField::create("TemplateExplanationTitle", "<h5>$explanationTitle</h5>"),
                     "RenderTemplate"
                 );
+                if (!$this->ID) {
+                    $explanation1 = _t("Newletter.TemplateExplanation1",
+                        'You should make your own styled SilverStripe templates	make sure your templates have a'
+                        . '$Body coded so the newletter\'s content could be clearly located in your templates'
+                    );
+                    $explanation2 = _t("Newletter.TemplateExplanation2",
+                        "Make sure your newsletter templates could be looked up in the dropdown list below by
+    					either placing them under your theme directory,	e.g. themes/mytheme/templates/email/
+    					");
+                    $explanation3 = _t("Newletter.TemplateExplanation3",
+                        "or under your project directory e.g. mysite/templates/email/
+    					");
+                    $fields->insertBefore(
+                        LiteralField::create("TemplateExplanation1", "<p class='help'>$explanation1</p>"),
+                        "RenderTemplate"
+                    );
+                    $fields->insertBefore(
+                        LiteralField::create(
+                            "TemplateExplanation2",
+                            "<p class='help'>$explanation2<br />$explanation3</p>"
+                        ),
+                        "RenderTemplate"
+                    );
+                }
+            } else {
+                $fields->replaceField("RenderTemplate",
+                    new HiddenField('RenderTemplate', false, key($templateSource))
+                );
             }
-        } else {
-            $fields->replaceField("RenderTemplate",
-                new HiddenField('RenderTemplate', false, key($templateSource))
-            );
-        }
 
-        if ($this && $this->exists()) {
-            $fields->removeByName("MailingLists");
-            $mailinglists = MailingList::get();
+            if ($this && $this->exists()) {
+                $fields->removeByName("MailingLists");
+                $mailinglists = MailingList::get();
 
-            $fields->addFieldToTab("Root.Main",
-                new CheckboxSetField(
-                    "MailingLists",
-                    _t('Newsletter.SendTo', "Send To", 'Selects mailing lists from set of checkboxes'),
-                    $mailinglists->map('ID', 'FullTitle')
-                )
-            );
-        }
-
-        if ($this->Status === 'Sending' || $this->Status === 'Sent') {
-            //make the whole field read-only
-            $fields = $fields->transform(new ReadonlyTransformation());
-            $fields->push(new HiddenField("NEWSLETTER_ORIGINAL_ID", "", $this->ID));
-
-            $gridFieldConfig = GridFieldConfig::create()->addComponents(
-                new GridFieldNewsletterSummaryHeader(),    //only works on SendRecipientQueue items, not TrackedLinks
-                new GridFieldSortableHeader(),
-                new GridFieldDataColumns(),
-                new GridFieldFilterHeader(),
-                new GridFieldPageCount(),
-                new GridFieldPaginator(30)
-            );
-
-            $sendRecipientGrid = GridField::create(
-                'SendRecipientQueue',
-                _t('NewsletterAdmin.SentTo', 'Sent to'),
-                $this->SendRecipientQueue(),
-                $gridFieldConfig
-            );
-
-            $fields->addFieldToTab('Root.SentTo', $sendRecipientGrid);
-
-            // only show the TrackedLinks tab, if there are tracked links in
-            // the newsletter and the status is "Sent"
-            if ($this->TrackedLinks()->count() > 0) {
-                $fields->addFieldToTab('Root.TrackedLinks', GridField::create(
-                        'TrackedLinks',
-                        _t('NewsletterAdmin.TrackedLinks', 'Tracked Links'),
-                        $this->TrackedLinks(),
-                        $gridFieldConfig
+                $fields->addFieldToTab("Root.Main",
+                    new CheckboxSetField(
+                        "MailingLists",
+                        _t('Newsletter.SendTo', "Send To", 'Selects mailing lists from set of checkboxes'),
+                        $mailinglists->map('ID', 'FullTitle')
                     )
                 );
             }
-        }
+
+            if ($this->Status === 'Sending' || $this->Status === 'Sent') {
+                //make the whole field read-only
+                $fields = $fields->transform(new ReadonlyTransformation());
+                $fields->push(new HiddenField("NEWSLETTER_ORIGINAL_ID", "", $this->ID));
+
+                $gridFieldConfig = GridFieldConfig::create()->addComponents(
+                    new GridFieldNewsletterSummaryHeader(),    //only works on SendRecipientQueue items, not TrackedLinks
+                    new GridFieldSortableHeader(),
+                    new GridFieldDataColumns(),
+                    new GridFieldFilterHeader(),
+                    new GridFieldPageCount(),
+                    new GridFieldPaginator(30)
+                );
+
+                $sendRecipientGrid = GridField::create(
+                    'SendRecipientQueue',
+                    _t('NewsletterAdmin.SentTo', 'Sent to'),
+                    $this->SendRecipientQueue(),
+                    $gridFieldConfig
+                );
+
+                $fields->addFieldToTab('Root.SentTo', $sendRecipientGrid);
+
+                // only show the TrackedLinks tab, if there are tracked links in
+                // the newsletter and the status is "Sent"
+                if ($this->TrackedLinks()->count() > 0) {
+                    $fields->addFieldToTab('Root.TrackedLinks', GridField::create(
+                            'TrackedLinks',
+                            _t('NewsletterAdmin.TrackedLinks', 'Tracked Links'),
+                            $this->TrackedLinks(),
+                            $gridFieldConfig
+                        )
+                    );
+                }
+            }
+        });
+
+        $fields = parent::getCMSFields();
 
         return $fields;
     }
@@ -293,7 +291,7 @@ class Newsletter extends DataObject implements CMSPreviewable
         $paths = NewsletterAdmin::template_paths();
 
         $templates = array(
-            "SimpleNewsletterTemplate" => _t('TemplateList.SimpleNewsletterTemplate', 'Simple Newsletter Template')
+            "silverstripe\\newsletter:Emails\SimpleNewsletterTemplate" => _t('TemplateList.SimpleNewsletterTemplate', 'Simple Newsletter Template')
         );
 
         if (isset($paths) && is_array($paths)) {
@@ -384,16 +382,20 @@ class Newsletter extends DataObject implements CMSPreviewable
         return $this->getField('Subject');
     }
 
+    /**
+     *
+     */
     public function render()
     {
         if (!$templateName = $this->RenderTemplate) {
-            $templateName = 'SimpleNewsletterTemplate';
+            $templateName = 'Emails\SimpleNewsletterTemplate';
         }
+
         // Block stylesheets and JS that are not required (email templates should have inline CSS/JS)
         Requirements::clear();
 
         // Create recipient with some test data
-        $recipient = new Recipient(Recipient::$test_data);
+        $recipient = new Recipient(Recipient::config()->get('test_data'));
         $newsletterEmail = NewsletterEmail::create($this, $recipient, true);
 
         return HTTP::absoluteURLs($newsletterEmail->getData()->renderWith($templateName));
