@@ -98,6 +98,13 @@ class NewsletterEmail extends Email
                     arsort($sorted);
 
                     foreach ($sorted as $link => $length) {
+                        // ignore mailto's
+                        if ((substr(strtolower($link), 0, 7) == 'mailto:')) {
+                            $replacements[$link] = $link;
+
+                            continue;
+                        }
+
                         $tracked = NewsletterTrackedLink::get()->filter([
                             'NewsletterID' => $id,
                             'Original' => $link
