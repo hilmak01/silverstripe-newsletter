@@ -44,6 +44,8 @@ class SubscriptionPage extends Page
 
     private static $table_name = 'SubscriptionPage';
 
+    private static $icon = 'silverstripe/newsletter:client/images/subscription-icon.png';
+
     public function requireDefaultRecords()
     {
         parent::requireDefaultRecords();

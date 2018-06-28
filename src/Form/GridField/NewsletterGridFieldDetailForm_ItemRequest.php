@@ -12,7 +12,6 @@ use SilverStripe\View\ArrayData;
 use SilverStripe\View\Requirements;
 use SilverStripe\Control\Controller;
 use SilverStripe\Core\Config\Config;
-use SilverStripe\Newsletter\Jobs\NewsletterMailerJob;
 
 class NewsletterGridFieldDetailForm_ItemRequest extends GridFieldDetailForm_ItemRequest
 {
@@ -192,8 +191,7 @@ class NewsletterGridFieldDetailForm_ItemRequest extends GridFieldDetailForm_Item
         try {
             $form->saveInto($this->record);
 
-            $this->record->Status = 'Sending';  //custom: changing the status of to indicate we are sending
-            $this->record->write();
+            $this->record->scheduleSend();
 
             $this->gridField->getList()->add($this->record);
         } catch (ValidationException $e) {
@@ -211,9 +209,6 @@ class NewsletterGridFieldDetailForm_ItemRequest extends GridFieldDetailForm_Item
             }
             return $responseNegotiator->respond($controller->getRequest());
         }
-
-        $sendNewsletter = new NewsletterMailerJob($this->record->ID);
-        singleton(QueuedJobService::class)->queueJob($sendNewsletter);
 
         $message = _t(
             'NewsletterAdmin.SendMessage',

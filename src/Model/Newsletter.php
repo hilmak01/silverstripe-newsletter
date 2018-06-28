@@ -27,6 +27,9 @@ use SilverStripe\View\Requirements;
 use SilverStripe\Newsletter\Control\NewsletterAdmin;
 use SilverStripe\Newsletter\Control\Email\NewsletterEmail;
 use SilverStripe\Newsletter\Form\GridField\GridFieldNewsletterSummaryHeader;
+use SilverStripe\Newsletter\Jobs\NewsletterMailerJob;
+use Symbiote\QueuedJobs\Services\QueuedJobService;
+use Symbiote\QueuedJobs\DataObjects\QueuedJobDescriptor;
 
 class Newsletter extends DataObject implements CMSPreviewable
 {
@@ -38,6 +41,10 @@ class Newsletter extends DataObject implements CMSPreviewable
         "SendFrom" => "Varchar(255)",
         "ReplyTo" => "Varchar(255)",
         "RenderTemplate"  => "Varchar",
+    ];
+
+    private static $has_one = [
+        'ScheduledJob' => QueuedJobDescriptor::class
     ];
 
     private static $has_many = [
@@ -459,6 +466,32 @@ class Newsletter extends DataObject implements CMSPreviewable
     public function getMimeType()
     {
         return 'text/html';
+    }
+
+    /**
+     * Handles marking this newsletter as sent and kicking off the queued job
+     * process.
+     *
+     * @return int
+     */
+    public function scheduleSend()
+    {
+        if ($this->ScheduledJobID) {
+            return $this->ScheduledJobID;
+        }
+
+        $this->extend('onBeforeScheduleSend');
+
+        $this->Status = 'Sending';
+        $this->write();
+
+        $sendNewsletter = new NewsletterMailerJob($this->ID);
+        $jobId = singleton(QueuedJobService::class)->queueJob($sendNewsletter);
+
+        $this->ScheduledJobID = $jobId;
+        $this->write();
+
+        return $this->ScheduledJobID;
     }
 
     public function onBeforeDelete()

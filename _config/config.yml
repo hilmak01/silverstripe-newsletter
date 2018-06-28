@@ -13,4 +13,5 @@ SilverStripe\Newsletter\Control\NewsletterAdmin:
     - 'silverstripe/newsletter:client/javascript/NewsletterAdminEmailPreview.js'
 SilverStripe\View\SSViewer:
   themes:
+    - '$default'
     - 'silverstripe/newsletter:newsletter-emails'

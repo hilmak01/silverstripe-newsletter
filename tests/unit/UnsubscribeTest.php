@@ -58,7 +58,7 @@ class UnsubscribeTest extends SapphireTest
         $url = 'unsubscribe/index';
         $body = Director::test($url)->getBody();
         $form = new Unsubscribe_EmailAddressForm(self::$page, 'EmailAddressForm');
-        this->assertContains($form->forTemplate(), $body);
+        $this->assertContains($form->forTemplate(), $body);
     }
 
     public function testDoneMessage()
