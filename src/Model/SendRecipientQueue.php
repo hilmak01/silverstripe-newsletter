@@ -60,7 +60,7 @@ class SendRecipientQueue extends DataObject
         }
 
         if ($recipient && empty($recipient->Blacklisted) && $recipient->Verified) {
-            $email = NewsLetterEmail::create(
+            $email = NewsletterEmail::create(
                 $newsletter,
                 $recipient
             );

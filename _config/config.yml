@@ -14,4 +14,4 @@ SilverStripe\Newsletter\Control\NewsletterAdmin:
 SilverStripe\View\SSViewer:
   themes:
     - '$default'
-    - 'silverstripe/newsletter:newsletter-emails'
+    - 'silverstripe/newsletter:newsletter'

@@ -37,7 +37,7 @@ class NewsletterAdmin extends ModelAdmin
 
     private static $admin_themes = [
         'silverstripe/admin:cms-forms',
-        'silverstripe/newsletter:newsletter-emails',
+        'silverstripe/newsletter:newsletter',
         SSViewer::DEFAULT_THEME,
     ];
 
@@ -45,6 +45,13 @@ class NewsletterAdmin extends ModelAdmin
      * @config
      */
     private static $template_paths = [];
+
+    public function init()
+    {
+        parent::init();
+
+        SSViewer::set_themes(static::config()->uninherited('admin_themes'));
+    }
 
     public function getEditForm($id = null, $fields = null)
     {

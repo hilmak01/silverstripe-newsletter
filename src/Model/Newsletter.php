@@ -23,7 +23,9 @@ use SilverStripe\Forms\GridField\GridField;
 use SilverStripe\Control\Director;
 use SilverStripe\Control\Controller;
 use SilverStripe\Control\HTTP;
+use SilverStripe\Core\Config\Config;
 use SilverStripe\View\Requirements;
+use SilverStripe\View\SSViewer;
 use SilverStripe\Newsletter\Control\NewsletterAdmin;
 use SilverStripe\Newsletter\Control\Email\NewsletterEmail;
 use SilverStripe\Newsletter\Form\GridField\GridFieldNewsletterSummaryHeader;
@@ -298,7 +300,7 @@ class Newsletter extends DataObject implements CMSPreviewable
         $paths = NewsletterAdmin::template_paths();
 
         $templates = array(
-            "silverstripe\\newsletter:Emails\SimpleNewsletterTemplate" => _t('TemplateList.SimpleNewsletterTemplate', 'Simple Newsletter Template')
+            "silverstripe\\newsletter:SimpleNewsletterTemplate" => _t('TemplateList.SimpleNewsletterTemplate', 'Simple Newsletter Template')
         );
 
         if (isset($paths) && is_array($paths)) {
@@ -394,21 +396,27 @@ class Newsletter extends DataObject implements CMSPreviewable
      */
     public function render()
     {
+        $origState = Config::inst()->get(SSViewer::class, 'theme_enabled');
+        Config::inst()->update(SSViewer::class, 'theme_enabled', true);
+
         if (!$templateName = $this->RenderTemplate) {
-            $templateName = 'Emails\SimpleNewsletterTemplate';
+            $templateName = 'SimpleNewsletterTemplate';
         }
 
-        // Block stylesheets and JS that are not required (email templates should have inline CSS/JS)
-        Requirements::clear();
-
         // Create recipient with some test data
-        $recipient = new Recipient(Recipient::config()->get('test_data'));
+        $recipient = Recipient::create(Recipient::config()->get('test_data'));
         $newsletterEmail = NewsletterEmail::create($this, $recipient, true);
 
-        return HTTP::absoluteURLs($newsletterEmail->getData()->renderWith($templateName));
+        $data = HTTP::absoluteURLs($newsletterEmail->getData()->renderWith($templateName));
+
+        Config::inst()->update(SSViewer::class, 'theme_enabled', $origState);
+
+        return $data;
     }
 
     /**
+     * @param Member $member
+     *
      * @return bool
      */
     public function canDelete($member = null)
@@ -424,6 +432,22 @@ class Newsletter extends DataObject implements CMSPreviewable
 
             return false;
         }
+    }
+
+    /**
+     * @param Member $member
+     *
+     * @return bool
+     */
+    public function canEdit($member = null)
+    {
+        $can = parent::canEdit($member);
+
+        if ($this->Status !== 'Draft') {
+            return false;
+        }
+
+        return $can;
     }
 
 
@@ -499,6 +523,7 @@ class Newsletter extends DataObject implements CMSPreviewable
         parent::onBeforeDelete();
 
         $queueditems = $this->SendRecipientQueue();
+
         if ($queueditems && $queueditems->exists()) {
             foreach ($queueditems as $item) {
                 $item->delete();
@@ -506,13 +531,20 @@ class Newsletter extends DataObject implements CMSPreviewable
         }
 
         $trackedLinks = $this->TrackedLinks();
+
         if ($trackedLinks && $trackedLinks->exists()) {
             foreach ($trackedLinks as $link) {
                 $link->delete();
             }
         }
 
-        //remove this from its belonged mailing lists
+        // remove this from its belonged mailing lists
         $this->MailingLists()->removeAll();
+
+        // pause the job if running.
+        if ($this->ScheduledJobID) {
+            $this->ScheduledJob()->pause();
+            $this->ScheduledJob()->delete();
+        }
     }
 }
