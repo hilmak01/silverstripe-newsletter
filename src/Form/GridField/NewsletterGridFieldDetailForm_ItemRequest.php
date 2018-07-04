@@ -190,7 +190,6 @@ class NewsletterGridFieldDetailForm_ItemRequest extends GridFieldDetailForm_Item
 
         try {
             $form->saveInto($this->record);
-
             $this->record->scheduleSend();
 
             $this->gridField->getList()->add($this->record);
@@ -234,11 +233,17 @@ class NewsletterGridFieldDetailForm_ItemRequest extends GridFieldDetailForm_Item
 
     public function doSendPreview($data, $form)
     {
+        $form->saveInto($this->record);
+        $this->record->write();
+
         return $this->record->render();
     }
 
     public function doViewPreview($data, $form)
     {
+        $form->saveInto($this->record);
+        $this->record->write();
+
         return $this->record->render();
     }
 }
