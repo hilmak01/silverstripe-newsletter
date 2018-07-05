@@ -25,9 +25,9 @@ SilverStripe\Newsletter\Model\MailingList:
   mlall:
     Title: mailing list all
     Recipients:
-      - =>SilverStripe\Newsletter\Model\Recipient.normann2,
-      - =>SilverStripe\Newsletter\Model\Recipient.julian2,
-      - =>SilverStripe\Newsletter\Model\Recipient.normann1,
+      - =>SilverStripe\Newsletter\Model\Recipient.normann2
+      - =>SilverStripe\Newsletter\Model\Recipient.julian2
+      - =>SilverStripe\Newsletter\Model\Recipient.normann1
       - =>SilverStripe\Newsletter\Model\Recipient.julian1
 SilverStripe\Newsletter\Model\Newsletter:
   daily:

@@ -19,6 +19,7 @@ use SilverStripe\Forms\GridField\GridFieldPaginator;
 use SilverStripe\Forms\GridField\GridFieldAddNewButton;
 use SilverStripe\Forms\GridField\GridFieldDetailForm;
 use SilverStripe\Forms\GridField\GridFieldEditButton;
+use SilverStripe\Newsletter\Form\GridField\NewsletterGridFieldConfig;
 
 class MailingList extends DataObject
 {
@@ -67,6 +68,12 @@ class MailingList extends DataObject
 
         $fields->removeByName('FileTracking');
         $fields->removeByName('LinkTracking');
+
+        if ($newsletter = $fields->dataFieldByName('Newsletters')) {
+            if ($newsletter->hasMethod('setConfig')) {
+                $newsletter->setConfig(NewsletterGridFieldConfig::create());
+            }
+        }
 
         return $fields;
     }

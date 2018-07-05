@@ -8,9 +8,7 @@ use SilverStripe\Newsletter\Model\MailingList;
 use SilverStripe\Newsletter\Model\Recipient;
 use SilverStripe\SiteConfig\SiteConfig;
 use SilverStripe\Forms\GridField\GridFieldDataColumns;
-use SilverStripe\Forms\GridField\GridFieldDetailForm;
-use SilverStripe\Newsletter\Form\GridField\NewsletterGridFieldDetailForm;
-use SilverStripe\Newsletter\Form\GridField\NewsletterGridFieldDetailForm_ItemRequest;
+use SilverStripe\Newsletter\Form\GridField\NewsletterGridFieldConfig;
 use SilverStripe\View\SSViewer;
 
 class NewsletterAdmin extends ModelAdmin
@@ -58,17 +56,7 @@ class NewsletterAdmin extends ModelAdmin
         $form = parent::getEditForm($id, $fields);
 
         if ($this->modelClass == Newsletter::class) {
-            $config = $form->Fields()->first()->getConfig();
-            $config->removeComponentsByType(GridFieldDetailForm::class);
-
-            $config->addComponent((new NewsletterGridFieldDetailForm())->setItemRequestClass(
-                    NewsletterGridFieldDetailForm_ItemRequest::class
-                ));
-
-            $config->getComponentByType(GridFieldDataColumns::class)
-                ->setFieldCasting(array(
-                    "Content" => "HTMLText->LimitSentences",
-            ));
+            $config = NewsletterGridFieldConfig::create();
 
             $form->Fields()->first()->setConfig($config);
         }

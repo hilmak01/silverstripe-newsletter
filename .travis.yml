@@ -51,7 +51,7 @@ before_script:
   - if [[ $NPM_TEST ]]; then nvm install $TRAVIS_NODE_VERSION && npm install -g yarn && yarn install --network-concurrency 1; fi
 
 script:
-  - if [[ $PHPUNIT_TEST ]]; then vendor/bin/phpunit tests/php; fi
+  - if [[ $PHPUNIT_TEST ]]; then vendor/bin/phpunit .; fi
 #  - if [[ $NPM_TEST ]]; then yarn run build; fi
 #  - if [[ $NPM_TEST ]]; then git diff-files --quiet -w --relative=client; fi
 #  - if [[ $NPM_TEST ]]; then git diff --name-status --relative=client; fi

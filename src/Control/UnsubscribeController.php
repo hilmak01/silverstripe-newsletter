@@ -8,6 +8,8 @@ use SilverStripe\SiteConfig\SiteConfig;
 use SilverStripe\View\Requirements;
 use SilverStripe\ORM\ArrayList;
 use SilverStripe\Core\Convert;
+use SilverStripe\Newsletter\Model\UnsubscribeRecord;
+use SilverStripe\Newsletter\Form\ResubscribeForm;
 use SilverStripe\Newsletter\Extensions\NewsletterContentControllerExtension;
 
 class UnsubscribeController extends PageController

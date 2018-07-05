@@ -6,6 +6,8 @@ use SilverStripe\Control\Email\Email;
 use SilverStripe\Control\Director;
 use SilverStripe\SiteConfig\SiteConfig;
 use SilverStripe\View\ArrayData;
+use SilverStripe\View\SSViewer_FromString;
+use SilverStripe\ORM\FieldType\DBField;
 use SilverStripe\Newsletter\Model\NewsletterTrackedLink;
 use SilverStripe\Newsletter\Control\UnsubscribeController;
 
@@ -51,20 +53,23 @@ class NewsletterEmail extends Email
         $this->ss_template = $newsletter->RenderTemplate;
 
         if ($this->body && $this->newsletter) {
-            $text = $this->body->forTemplate();
+            $text = (is_string($this->body)) ? $this->body : $this->body->forTemplate();
 
             // Recipient Fields ShortCode parsing
             $bodyViewer = new SSViewer_FromString($text);
             $text = $bodyViewer->process($this->templateData());
 
-            if ($this->config()->link_tracking_enabled && !$this->fakeRecipient) {
+            if ($this->config()->get('link_tracking_enabled') && !$this->fakeRecipient) {
                 $text = $this->rewriteLinks($text);
             }
 
-            $output = new HTMLText();
-            $output->setValue($text);
+            $output = DBField::create_field('HTMLText', $text);
 
             $this->body = $output;
+        }
+
+        if (is_string($this->body)) {
+            $this->body = DBField::create_field('HTMLText', $this->body);
         }
     }
 
@@ -186,24 +191,22 @@ class NewsletterEmail extends Email
      */
     protected function templateData()
     {
-        $default = array(
-            "To" => $this->to,
-            "Cc" => $this->cc,
-            "Bcc" => $this->bcc,
-            "From" => $this->from,
-            "Subject" => $this->subject,
-            "Body" => $this->body,
-            "BaseURL" => $this->BaseURL(),
-            "IsEmail" => true,
-            "Recipient" => $this->recipient,
-            "Member" => $this->recipient, // backwards compatibility
-        );
+        $default = [
+            'To' => $this->to,
+            'Cc' => $this->cc,
+            'Bcc' => $this->bcc,
+            'From' => $this->from,
+            'Subject' => $this->subject,
+            'Body' => (is_string($this->body)) ? DBField::create_field('HTMLText', $this->body) : $this->body,
+            'BaseURL' => $this->BaseURL(),
+            'IsEmail' => true,
+            'Recipient' => $this->recipient,
+            'Member' => $this->recipient, // backwards compatibility
+        ];
 
-        if ($this->template_data) {
-            return $this->template_data->customise($default);
-        } else {
-            return $this;
-        }
+        $this->extend('updateTemplateData', $default);
+
+        return $default;
     }
 
     public function getData()

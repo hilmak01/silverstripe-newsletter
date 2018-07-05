@@ -18,6 +18,8 @@ class NewsletterGridFieldDetailForm_ItemRequest extends GridFieldDetailForm_Item
     private static $allowed_actions = [
         'ItemEditForm',
         'emailpreview',
+        'doSend',
+        'preview'
     ];
 
     protected function getFormActions()
@@ -191,7 +193,6 @@ class NewsletterGridFieldDetailForm_ItemRequest extends GridFieldDetailForm_Item
         try {
             $form->saveInto($this->record);
             $this->record->scheduleSend();
-
             $this->gridField->getList()->add($this->record);
         } catch (ValidationException $e) {
             $form->sessionMessage($e->getResult()->message(), 'bad');
@@ -244,6 +245,15 @@ class NewsletterGridFieldDetailForm_ItemRequest extends GridFieldDetailForm_Item
         $form->saveInto($this->record);
         $this->record->write();
 
-        return $this->record->render();
+        return $this->controller->redirect($this->Link('preview'), 302);
+    }
+
+    public function preview()
+    {
+        if ($this->record && $this->record->canView()) {
+            return $this->record->render();
+        } else {
+            $this->controller->httpError(404);
+        }
     }
 }

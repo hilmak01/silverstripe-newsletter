@@ -12,7 +12,7 @@ use SilverStripe\Core\Config\Config;
 
 class UnsubscribeTest extends SapphireTest
 {
-    protected static $fixture_file = 'UnsubscribeTest.yml';
+    protected static $fixture_file = 'Base.yml';
 
     public static $page;
 
@@ -26,39 +26,19 @@ class UnsubscribeTest extends SapphireTest
     public function testIndexWithAutoLoginHashAndNewsletterType()
     {
         $member = $this->objFromFixture(Recipient::class, "normann1");
-        $group = $this->objFromFixture(Group::class, 'newsletter1');
+        $list = $this->objFromFixture(MailingList::class, 'ml1');
 
-        $this->assertTrue($member->inGroup($group));
+        $this->assertTrue($list->Recipients()->find($member)->exists());
 
         $url = 'unsubscribe/index/94l4ee9ib8kkw3s08k8wwcs4g/1';
-        $response = Director::test($url);
-        $baseurl = Director::absoluteBaseURL();
+        $response = $this->get($url);
 
-        $this->assertEquals(
-        	$baseurl.'unsubscribe/done/94l4ee9ib8kkw3s08k8wwcs4g/1',
-        	$response->getHeader('Location')
+        $this->assertContains(
+            'unsubscribe/done/94l4ee9ib8kkw3s08k8wwcs4g/1',
+            $response->getHeader('Location')
         );
 
         $this->assertFalse($member->inGroup($group));
-    }
-
-    public function testIndexWithAutoLoginHash()
-    {
-        $member = $this->objFromFixture(Recipient::class, "normann1");
-        $url = 'unsubscribe/index/94l4ee9ib8kkw3s08k8wwcs4g';
-        $body = $this->get($url)->getBody();
-
-        $form = new Unsubscribe_MailingListForm(self::$page, 'MailingListForm', $member);
-
-        $this->assertContains($form->forTemplate(), $body);
-    }
-
-    public function testIndex()
-    {
-        $url = 'unsubscribe/index';
-        $body = Director::test($url)->getBody();
-        $form = new Unsubscribe_EmailAddressForm(self::$page, 'EmailAddressForm');
-        $this->assertContains($form->forTemplate(), $body);
     }
 
     public function testDoneMessage()
@@ -68,8 +48,8 @@ class UnsubscribeTest extends SapphireTest
          	'unsubscribe/done/94l4ee9ib8kkw3s08k8wwcs4g?MailingLists[1]=1&MailingLists[2]=2'
         );
 
-        $body1 = Director::test($url1)->getBody();
-        $body2 = Director::test($url2)->getBody();
+        $body1 = $this->get($url1)->getBody();
+        $body2 = $this->get($url2)->getBody();
 
         $message1 = sprintf(
          	_t('Unsubscribe.REMOVESUCCESS', 'Thank you. %s will no longer receive the %s.'),

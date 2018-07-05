@@ -12,6 +12,8 @@ use SilverStripe\Forms\FieldList;
 use SilverStripe\Forms\HiddenField;
 use SilverStripe\Forms\ReadonlyTransformation;
 use SilverStripe\Forms\LiteralField;
+use SilverStripe\Forms\FieldGroup;
+use SilverStripe\Forms\ToggleCompositeField;
 use SilverStripe\Forms\CheckboxSetField;
 use SilverStripe\Forms\GridField\GridFieldConfig;
 use SilverStripe\Forms\GridField\GridFieldSortableHeader;
@@ -26,6 +28,7 @@ use SilverStripe\Control\HTTP;
 use SilverStripe\Core\Config\Config;
 use SilverStripe\View\Requirements;
 use SilverStripe\View\SSViewer;
+use SilverStripe\View\ArrayData;
 use SilverStripe\Newsletter\Control\NewsletterAdmin;
 use SilverStripe\Newsletter\Control\Email\NewsletterEmail;
 use SilverStripe\Newsletter\Form\GridField\GridFieldNewsletterSummaryHeader;
@@ -136,7 +139,7 @@ class Newsletter extends DataObject implements CMSPreviewable
             $admin = Email::config()->get('admin_email');
             $fields->removeByName('FileTracking');
             $fields->removeByName('LinkTracking');
-
+            $fields->removeByName('ScheduledJobID');
             $fields->removeByName('Status');
 
             $fields->addFieldToTab(
@@ -171,66 +174,63 @@ class Newsletter extends DataObject implements CMSPreviewable
             $fields->removeByName('SendRecipientQueue');
             $fields->removeByName('TrackedLinks');
 
-            if ($this->Status != 'Sent') {
-                $contentHelp = '<strong>'
-                    . _t('Newsletter.FormattingHelp', 'Formatting Help')
-                    . '</strong><br />';
-                $contentHelp .= '<ul>';
+            if (!$this->Status || $this->Status == 'Draft') {
+                $contentHelp = '<ul>';
                 foreach ($this->getAvailablePlaceholders() as $title => $description) {
                     $contentHelp .= sprintf('<li><em>$%s</em>: %s</li>', $title, $description);
                 }
                 $contentHelp .= '</ul>';
-                $contentField = $fields->dataFieldByName('Content');
-                if ($contentField) {
-                    $contentField->setDescription($contentHelp);
-                }
+
+                $fields->insertAfter('Content', ToggleCompositeField::create(
+                    'FormattingHelp',
+                    _t('Newsletter.FormattingHelp', 'Formatting Help'),
+                    [
+                        LiteralField::create('FormattingTags', $contentHelp)
+                    ]
+                ));
             }
 
             // Only show template selection if there's more than one template set
             $templateSource = $this->templateSource();
 
-            if (count($templateSource) > 1) {
-                $fields->replaceField(
-                    "RenderTemplate",
-                    new DropdownField("RenderTemplate", _t('NewsletterAdmin.RENDERTEMPLATE',
-                        'Template the newsletter render to'),
-                    $templateSource)
-                );
+            $fields->replaceField(
+                "RenderTemplate",
+                new DropdownField("RenderTemplate", _t('NewsletterAdmin.RENDERTEMPLATE',
+                    'Template the newsletter render to'),
+                $templateSource)
+            );
 
-                $explanationTitle = _t("Newletter.TemplateExplanationTitle",
-                    "Select a styled template (.ss template) that this newsletter renders with"
+            $explanationTitle = _t("Newletter.TemplateExplanationTitle",
+                "Select a styled template (.ss template) that this newsletter renders with"
+            );
+
+            $fields->insertBefore(
+                LiteralField::create("TemplateExplanationTitle", "<h5>$explanationTitle</h5>"),
+                "RenderTemplate"
+            );
+
+            if (!$this->ID) {
+                $explanation1 = _t("Newletter.TemplateExplanation1",
+                    'You should make your own styled SilverStripe templates	make sure your templates have a'
+                    . '$Body coded so the newletter\'s content could be clearly located in your templates'
                 );
+                $explanation2 = _t("Newletter.TemplateExplanation2",
+                    "Make sure your newsletter templates could be looked up in the dropdown list below by
+					either placing them under your theme directory,	e.g. themes/mytheme/templates/email/
+					");
+                $explanation3 = _t("Newletter.TemplateExplanation3",
+                    "or under your project directory e.g. mysite/templates/email/
+					");
                 $fields->insertBefore(
-                    LiteralField::create("TemplateExplanationTitle", "<h5>$explanationTitle</h5>"),
+                    LiteralField::create("TemplateExplanation1", "<p class='help'>$explanation1</p>"),
                     "RenderTemplate"
                 );
-                if (!$this->ID) {
-                    $explanation1 = _t("Newletter.TemplateExplanation1",
-                        'You should make your own styled SilverStripe templates	make sure your templates have a'
-                        . '$Body coded so the newletter\'s content could be clearly located in your templates'
-                    );
-                    $explanation2 = _t("Newletter.TemplateExplanation2",
-                        "Make sure your newsletter templates could be looked up in the dropdown list below by
-    					either placing them under your theme directory,	e.g. themes/mytheme/templates/email/
-    					");
-                    $explanation3 = _t("Newletter.TemplateExplanation3",
-                        "or under your project directory e.g. mysite/templates/email/
-    					");
-                    $fields->insertBefore(
-                        LiteralField::create("TemplateExplanation1", "<p class='help'>$explanation1</p>"),
-                        "RenderTemplate"
-                    );
-                    $fields->insertBefore(
-                        LiteralField::create(
-                            "TemplateExplanation2",
-                            "<p class='help'>$explanation2<br />$explanation3</p>"
-                        ),
-                        "RenderTemplate"
-                    );
-                }
-            } else {
-                $fields->replaceField("RenderTemplate",
-                    new HiddenField('RenderTemplate', false, key($templateSource))
+                $fields->insertBefore(
+                    LiteralField::create(
+                        "TemplateExplanation2",
+                        "<p class='help'>$explanation2<br />$explanation3</p>"
+                    ),
+                    "RenderTemplate"
                 );
             }
 
@@ -249,11 +249,8 @@ class Newsletter extends DataObject implements CMSPreviewable
 
             if ($this->Status === 'Sending' || $this->Status === 'Sent') {
                 //make the whole field read-only
-                $fields = $fields->transform(new ReadonlyTransformation());
-                $fields->push(new HiddenField("NEWSLETTER_ORIGINAL_ID", "", $this->ID));
-
                 $gridFieldConfig = GridFieldConfig::create()->addComponents(
-                    new GridFieldNewsletterSummaryHeader(),    //only works on SendRecipientQueue items, not TrackedLinks
+                    new GridFieldNewsletterSummaryHeader(),
                     new GridFieldSortableHeader(),
                     new GridFieldDataColumns(),
                     new GridFieldFilterHeader(),
@@ -268,7 +265,9 @@ class Newsletter extends DataObject implements CMSPreviewable
                     $gridFieldConfig
                 );
 
-                $fields->addFieldToTab('Root.SentTo', $sendRecipientGrid);
+                $fields->addFieldsToTab('Root.SentTo', [
+                    $sendRecipientGrid
+                ]);
 
                 // only show the TrackedLinks tab, if there are tracked links in
                 // the newsletter and the status is "Sent"
@@ -300,7 +299,7 @@ class Newsletter extends DataObject implements CMSPreviewable
         $paths = NewsletterAdmin::template_paths();
 
         $templates = array(
-            "silverstripe\\newsletter:SimpleNewsletterTemplate" => _t('TemplateList.SimpleNewsletterTemplate', 'Simple Newsletter Template')
+            "SimpleNewsletterTemplate" => _t('TemplateList.BasicTemplate', 'Basic Template')
         );
 
         if (isset($paths) && is_array($paths)) {
@@ -312,10 +311,8 @@ class Newsletter extends DataObject implements CMSPreviewable
             foreach ($paths as $path) {
                 $path = $absPath.$path;
 
-
                 if (is_dir($path)) {
                     $templateDir = opendir($path);
-
 
                     // read all files in the directory
                     while (($templateFile = readdir($templateDir)) !== false) {
@@ -407,7 +404,9 @@ class Newsletter extends DataObject implements CMSPreviewable
         $recipient = Recipient::create(Recipient::config()->get('test_data'));
         $newsletterEmail = NewsletterEmail::create($this, $recipient, true);
 
-        $data = HTTP::absoluteURLs($newsletterEmail->getData()->renderWith($templateName));
+        $data = HTTP::absoluteURLs($this->customise(
+            new ArrayData($newsletterEmail->getData())
+        )->renderWith($templateName));
 
         Config::inst()->update(SSViewer::class, 'theme_enabled', $origState);
 
@@ -443,7 +442,7 @@ class Newsletter extends DataObject implements CMSPreviewable
     {
         $can = parent::canEdit($member);
 
-        if ($this->Status !== 'Draft') {
+        if ($this->Status && $this->Status !== 'Draft') {
             return false;
         }
 
@@ -500,14 +499,8 @@ class Newsletter extends DataObject implements CMSPreviewable
      */
     public function scheduleSend()
     {
-        if ($this->ScheduledJobID) {
-            return $this->ScheduledJobID;
-        }
-
         $this->extend('onBeforeScheduleSend');
-
         $this->Status = 'Sending';
-        $this->write();
 
         $sendNewsletter = new NewsletterMailerJob($this->ID);
         $jobId = singleton(QueuedJobService::class)->queueJob($sendNewsletter);

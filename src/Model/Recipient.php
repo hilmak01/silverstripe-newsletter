@@ -60,12 +60,11 @@ class Recipient extends DataObject
     ];
 
     private static $summary_fields = [
-        'FirstName'            => 'First Name',
-        'Surname'            => 'Last Name',
-        'Email'                => 'Email',
-        'Blacklisted'        => 'Blacklisted',
-        'BouncedCount'        => 'Bounced Count',
-        'ReceivedCount'        => 'Count for Received newsletters'
+        'FirstName'         => 'First Name',
+        'Surname'           => 'Last Name',
+        'Email'             => 'Email',
+        'Verified'          => 'Verified',
+        'Blacklisted'       => 'Blacklisted'
     ];
 
     private static $test_data = [
@@ -156,10 +155,13 @@ class Recipient extends DataObject
 
         $fields->removeByName('FileTracking');
         $fields->removeByName('LinkTracking');
+        $fields->removeByName('SendRecipientQueue');
+        $fields->removeByName('GUID');
         $fields->makeFieldReadonly('BouncedCount');
         $fields->makeFieldReadonly('ReceivedCount');
         $fields->makeFieldReadonly('ValidateHash');
         $fields->makeFieldReadonly('ValidateHashExpired');
+        $fields->makeFieldReadonly('Verified');
 
         return $fields;
     }
@@ -169,10 +171,10 @@ class Recipient extends DataObject
         $labels = parent::fieldLabels($includerelations);
 
         $labels['Salutation'] = _t('Newsletter.FieldSalutation', 'Salutation');
-        $labels['FirstName'] = _t('Newsletter.FieldFirstName', 'FirstName');
+        $labels['FirstName'] = _t('Newsletter.FieldFirstName', 'First Name');
         $labels['Surname'] = _t('Newsletter.FieldSurname', 'Surname');
         $labels['MiddleName'] = _t('Newsletter.FieldMiddleName', 'Middle Name');
-        $labels['Mailinglists'] = _t('Newsletter.FieldMailinglists', 'Mailinglists');
+        $labels['Mailinglists'] = _t('Newsletter.FieldMailinglists', 'Mailing Lists');
         $labels['BouncedCount'] = _t('Newsletter.FieldBouncedCount', 'Bounced Count');
         $labels['Verified'] = _t('Newsletter.FieldVerified', 'Verified?');
         $labels['Blacklisted'] = _t('Newsletter.FieldBlacklisted', 'Blacklisted?');

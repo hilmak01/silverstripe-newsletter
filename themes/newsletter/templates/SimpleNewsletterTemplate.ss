@@ -1,119 +1,93 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html>
-	<head>
-		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-		<% base_tag %>
-		<title>$Subject</title>
-		<style type="text/css">
-			/* Client-specific Styles */
-			#outlook a{padding:0;} /* Force Outlook to provide a "view in browser" button. */
-			body{width:100% !important;} .ReadMsgBody{width:100%;} .ExternalClass{width:100%;} /* Force Hotmail to display emails at full width */
-			body{-webkit-text-size-adjust:none;} /* Prevent Webkit platforms from changing default text sizes. */
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width"/>
 
-			/* Reset Styles */
-			body{margin:0; padding:0;}
-			table td{border-collapse:collapse;}
-			#backgroundTable{height:100% !important; margin:0; padding:0; width:100% !important;}
+    <style type="text/css">
+* { margin: 0; padding: 0; font-size: 100%; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";}
 
-			/* Template Styles */
-			body, #backgroundTable{
-				background-color:#FFFFFF;
-			}
+img { max-width: 100%; margin: 0 auto; display: block; }
 
-			/**
-			* @tab Page
-			* @section email border
-			* @tip Set the border for your email.
-			*/
-			#templateContainer{
-				border: 1px solid #333333;
-				background-color:#161616;
-			}
-			/**
-			* @tab Header
-			* @section header style
-			* @tip Set the background color and border for your email's header area.
-			* @theme header
-			*/
-			#templateHeader{
-				border-bottom:1px solid #FFFFFF;
-				color: #FFFFFF;
-				font-family: "HelveticaNeueLTPro-Bd", "Helvetica Neue LT Pro Bold", "HelveticaNeueBold", "HelveticaNeue-Bold", "Helvetica Neue Bold", "Helvetica Neue LT Pro", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif;
-			}
-			#templateHeader a{
-				color: #FFFFFF;
-				text-decoration: none;
-			}
+body, .body-wrap { width: 100% !important; height: 100%; background: #f8f8f8; }
 
-			/**
-			* @tab Header
-			* @section header text
-			* @tip Set the styling for your email's header text. Choose a size and color that is easy to read.
-			*/
-			.headerContent{
-				line-height:1;
-				padding:5px 20px 10px;
-			}
+a { color: #71bc37; text-decoration: none; }
 
-			#templateBody{
-				background-color:#FFFFFF;
-			}
-			/**
-			* @tab Body
-			* @section body text
-			* @tip Set the styling for your email's main content text. Choose a size and color that is easy to read.
-			* @theme main
-			*/
-			.bodyContent div{
-				color:#000000;
-				font-family:'Lucida Sans Unicode',sans-serif,Verdana,Arial;
-				font-size:13pt;
-				line-height:140%;
-				text-align:left;
-			}
-			.bodyContent div a{
-				color:#000000;
-			}
-			/**
-			* @tab NewsletterFooter
-			*/
-			#templateFooterTag{
-				background: #EDEDED;
-				color: #999999;
-			}
-			.footerTagLine{
-				padding: 10px 20px;
-				font-style: italic;
-			}
-		</style>
-	</head>
-	<body sytle="width:100% !important; -webkit-text-size-adjust:none;margin:0; padding:0;background-color:#FFFFFF;" leftmargin="0" marginwidth="0" topmargin="0" marginheight="0" offset="0">
-		<center>
-			<table border="0" cellpadding="0" cellspacing="0" height="100%" width="100%" id="backgroundTable" sytle="height:100% !important; margin:0; padding:0; width:100% !important; background-color:#FFFFFF;">
-				<tr>
-					<td align="center" valign="top" sytle="border-collapse:collapse;">
-						<table border="0" cellpadding="0" cellspacing="0" width="751" id="templateContainer" sytle="border: 1px solid #B29E80;background-color:#161616;">
-							<% include NewsletterHeader %>
-							<tr>
-								<td align="center" valign="top" sytle="border-collapse:collapse;">
-									<table border="0" cellpadding="20" cellspacing="0" width="751" id="templateBody" style="background-color:#FFFFFF;">
-										<tr>
-											<td valign="top" class="bodyContent" sytle="border-collapse:collapse;">
-												<div sytle="color:#000000;font-family:'Lucida Sans Unicode',sans-serif,Verdana,Arial;font-size:13pt;line-height:140%;text-align:left;">
-													$Body
-												</div>
-											</td>
-										</tr>
-									</table>
-								</td>
-							</tr>
-							<% include NewsletterFooter %>
-						</table>
-						<br />
-					</td>
-				</tr>
-			</table>
-			<% include UnsubscribeFooter %>
-		</center>
-	</body>
+a:hover { text-decoration: underline; }
+
+.text-center { text-align: center; }
+
+.text-right { text-align: right; }
+
+.text-left { text-align: left; }
+
+.button { display: inline-block; color: white; background: #71bc37; border: solid #71bc37; border-width: 10px 20px 8px; font-weight: bold; border-radius: 4px; }
+
+.button:hover { text-decoration: none; }
+
+h1, h2, h3, h4, h5, h6 { margin-bottom: 20px; line-height: 1.25; }
+
+h1 { font-size: 32px; }
+
+h2 { font-size: 28px; }
+
+h3 { font-size: 24px; }
+
+h4 { font-size: 20px; }
+
+h5 { font-size: 16px; }
+
+p, ul, ol { font-size: 16px; font-weight: normal; margin-bottom: 20px; }
+
+.container { display: block !important; clear: both !important; margin: 0 auto !important; max-width: 580px !important; }
+
+.container table { width: 100% !important; border-collapse: collapse; }
+
+.container .masthead { padding: 80px 0; background: #000; color: white; }
+
+.container .masthead h1 { margin: 0 auto !important; max-width: 90%; text-transform: uppercase; }
+
+.container .content { background: white; padding: 30px 35px; }
+
+.container .content.footer { background: none; }
+
+.container .content.footer p { margin-bottom: 0; color: #888; text-align: center; font-size: 14px; }
+
+.container .content.footer a { color: #888; text-decoration: none; font-weight: bold; }
+
+.container .content.footer a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+<table class="body-wrap">
+    <tr>
+        <td class="container">
+            <table>
+                <tr>
+                    <td align="center" class="masthead">
+                        <h1>$Subject</h1>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="content">
+                       $Body
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+    <tr>
+        <td class="container">
+            <table>
+                <tr>
+                    <td class="content footer" align="center">
+                        <p>Sent by <a href="$BaseURL">$SiteConfig.Title</a></p>
+                        <p>To unsubscribe <a href="$UnsubscribeLink">click here</a></p>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+</body>
 </html>

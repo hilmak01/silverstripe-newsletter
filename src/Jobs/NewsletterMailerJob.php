@@ -3,23 +3,30 @@
 namespace SilverStripe\Newsletter\Jobs;
 
 use SilverStripe\Newsletter\Model\Newsletter;
+use SilverStripe\Newsletter\Model\SendRecipientQueue;
 use SilverStripe\Core\Injector\Injector;
+use SilverStripe\Core\Environment;
+use SilverStripe\Core\Config\Config;
 use Psr\Log\LoggerInterface;
+use Symbiote\QueuedJobs\Services\QueuedJob;
 use Symbiote\QueuedJobs\Services\AbstractQueuedJob;
 
 class NewsletterMailerJob extends AbstractQueuedJob
 {
     private static $process_page_size = 10;
 
-    protected $newsletterId;
-
     /**
      * @param int $newsletterId
      */
-    public function __construct($newsletterId)
+    public function __construct($newsletterId = null)
     {
-        $this->newsletterId = $newsletterId;
-        $this->currentStep = 0;
+        parent::__construct();
+
+        if ($newsletterId && ($newsletter = Newsletter::get()->byId($newsletterId))) {
+            $this->setObject(
+                $newsletter, 'Newsletter'
+            );
+        }
     }
 
     /**
@@ -30,14 +37,6 @@ class NewsletterMailerJob extends AbstractQueuedJob
     public function getJobType()
     {
         return QueuedJob::QUEUED;
-    }
-
-    /**
-     * @return Newsletter
-     */
-    public function getNewsletter()
-    {
-        return Newsletter::get()->byId($this->newsletterId);
     }
 
     /**
@@ -55,7 +54,7 @@ class NewsletterMailerJob extends AbstractQueuedJob
      */
     public function getSignature()
     {
-        return md5(get_class($this) . $this->newsletterId);
+        return md5(get_class($this) . $this->NewsletterID);
     }
 
     /**
@@ -68,9 +67,12 @@ class NewsletterMailerJob extends AbstractQueuedJob
         Environment::increaseTimeLimitTo();
         Environment::increaseMemoryLimitTo();
 
-        $newsletter = $this->getNewsletter();
+        $newsletter = $this->getObject('Newsletter');
 
         if (!$newsletter) {
+            $this->addMessage('Newsletter object missing', 'ERROR');
+            $this->completeJob();
+
             return;
         }
 
@@ -85,6 +87,8 @@ class NewsletterMailerJob extends AbstractQueuedJob
                 ]);
 
                 if ($existingQueue->exists()) {
+                    $queueCount++;
+
                     continue;
                 }
 
@@ -97,40 +101,37 @@ class NewsletterMailerJob extends AbstractQueuedJob
             }
         }
 
-        $this->totalSteps = $queueCount;
-    }
-
-    /**
-     *
-     */
-    public function prepareForRestart()
-    {
-        parent::prepareForRestart();
-
-        Environment::increaseTimeLimitTo();
-        Environment::increaseMemoryLimitTo();
-
+        $this->currentStep = 0;
+        $this->totalSteps = $queueCount * 2; // one to mark, one to send
+        $this->isComplete = false;
     }
 
     public function process()
     {
-        $newsletter = $this->getNewsletter();
+        Environment::increaseTimeLimitTo();
+        Environment::increaseMemoryLimitTo();
+
+        $newsletter = $this->getObject('Newsletter');
 
         if (!$newsletter) {
-            return;
+            $this->completeJob();
+            $this->addMessage('Newsletter object missing', 'ERROR');
+
+            return true;
         }
 
         $remainingChildren = $newsletter->SendRecipientQueue()->filter('Status', 'Scheduled');
 
+        $pageSize = Config::inst()->get(__CLASS__, 'process_page_size');
+
         // if there's no more, we're done!
         if (!$remainingChildren->exists()) {
             $this->completeJob();
-            $this->isComplete = true;
 
-            return;
+            return true;
         }
 
-        $records = $remainingChildren->limit(0, self::config()->get('process_page_size'))->column('ID');
+        $records = $remainingChildren->limit($pageSize)->column('ID');
         $send = [];
 
         // mark all as in progress first.
@@ -146,20 +147,28 @@ class NewsletterMailerJob extends AbstractQueuedJob
                     $record->write();
                     $send[] = $recordId;
                 } catch (Exception $e) {
-                    Injector::inst()->get(LoggerInterface::class)->error($e->getMessage());
+                    $this->addMessage($e->getMessage(), 'ERROR');
+
+                    Injector::inst()->get(LoggerInterface::class)
+                        ->error($e->getMessage());
                 }
             }
         }
 
         // send each of notices
         foreach ($send as $recordId) {
+            $this->currentStep++;
+
             $record = SendRecipientQueue::get()->byId($recordId);
 
-            if ($record && $record->Status == 'InProgress') {
+            if ($record) {
                 try {
                     $record->send();
                 } catch (Exception $e) {
-                    Injector::inst()->get(LoggerInterface::class)->error($e->getMessage());
+                    $this->addMessage($e->getMessage(), 'ERROR');
+
+                    Injector::inst()->get(LoggerInterface::class)
+                        ->error($e->getMessage());
                 }
             }
         }
@@ -170,7 +179,10 @@ class NewsletterMailerJob extends AbstractQueuedJob
      */
     protected function completeJob()
     {
-        $newsletter = $this->getNewsletter();
+        $this->isComplete = true;
+        $this->currentStep = $this->totalSteps;
+
+        $newsletter = $this->getObject('Newsletter');
 
         if ($newsletter) {
             $newsletter->Status = 'Sent';
