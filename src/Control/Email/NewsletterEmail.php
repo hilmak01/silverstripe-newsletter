@@ -121,6 +121,12 @@ class NewsletterEmail extends Email
                         continue;
                     }
 
+                    if (substr($link, 0, 1) === '#') {
+                        $replacements[$link] = $link;
+
+                        continue;
+                    }
+
                     if ((substr(strtolower($link), 0, 15) == 'newsletterlinks')) {
                         $replacements[$link] = $link;
 
